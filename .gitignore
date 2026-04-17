@@ -1,0 +1,31 @@
+# Variables de entorno — NUNCA subir al repositorio
+.env
+.env.local
+
+# Logs de debug y errores
+debug.log
+*.log
+error_log
+
+# Uploads de pacientes (Mantener carpeta pero ignorar contenido)
+uploads/*
+!uploads/.gitkeep
+
+# Certificados AFIP y Claves Privadas
+certificates/*.pem
+certificates/*.key
+certificates/*.p12
+certificates/*.pfx
+certificates/*.crt
+
+# Archivos de Sistema y Editores
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+
+# Temporales de PHP / Composer
+vendor/
+composer.lock
+.phpunit.result.cache

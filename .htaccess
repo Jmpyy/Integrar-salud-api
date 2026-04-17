@@ -1,0 +1,57 @@
+RewriteEngine On
+
+# ─── HTTPS Force (descomentar en producción) ───────────────────
+# RewriteCond %{HTTPS} off
+# RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# ─── Health check (debe ir antes del routing general) ──────────
+RewriteRule ^api/health$ api/health.php [QSA,L]
+
+# ─── Fuerza a Apache a pasar las cabeceras de Autorización a PHP ───
+SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
+<IfModule mod_env.c>
+    SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
+</IfModule>
+CGIPassAuth On
+
+# ─── Route all API requests to index.php ───────────────────────
+RewriteCond %{REQUEST_URI} ^/api-integrar/api/ [NC]
+RewriteRule ^ index.php [E=HTTP_AUTHORIZATION:%{HTTP:Authorization},QSA,L]
+
+# Route non-API requests to index.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^ index.php [QSA,L]
+
+# ─── SEGURIDAD: Bloquear acceso directo a archivos sensibles ───
+
+# Bloquear core/ y config/ (previene acceso a Database.php, JWT.php, etc.)
+RewriteRule ^(core|config)/ - [F,L]
+
+# Bloquear scripts de migración y utilidades PHP expuestas
+<FilesMatch "^(migrate_|fix_|generate_|check_).*\.php$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Bloquear .sql, .env, .log y archivos de configuración
+<FilesMatch "\.(sql|env|log|json|lock|md|example)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Bloquear ejecución de PHP en directorio uploads/ por seguridad
+RewriteRule ^uploads/.*\.php$ - [F,L]
+Options -Indexes
+
+# ─── Headers de Seguridad ──────────────────────────────────────
+<IfModule mod_headers.c>
+    # Prevenir clickjacking
+    Header always set X-Frame-Options "SAMEORIGIN"
+    # Prevenir MIME sniffing
+    Header always set X-Content-Type-Options "nosniff"
+    # XSS Protection (legacy browsers)
+    Header always set X-XSS-Protection "1; mode=block"
+    # Referrer policy
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
