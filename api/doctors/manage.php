@@ -18,6 +18,7 @@ $id = isset($path[0]) && is_numeric($path[0]) ? (int)$path[0] : null;
 
 // ─── CREATE ───
 if ($method === 'POST') {
+    require_roles(['admin', 'administracion']);
     $errors = validate_required($body, ['name', 'specialty']);
     if (!empty($errors)) {
         json_error(400, 'Datos incompletos', $errors);
@@ -25,33 +26,45 @@ if ($method === 'POST') {
 
     $db->beginTransaction();
     try {
-        $stmt = $db->prepare('INSERT INTO doctors (name, specialty, license, color, phone, remuneration, remuneration_type) VALUES (?, ?, ?, ?, ?, ?, ?)');
+        $stmt = $db->prepare('INSERT INTO doctors (name, specialty, license, color, phone, meet_link, remuneration, remuneration_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
         $stmt->execute([
             $body['name'],
             $body['specialty'],
             $body['license'] ?? null,
             $body['color'] ?? 'indigo',
             $body['phone'] ?? null,
+            $body['meetLink'] ?? null,
             $body['remuneration'] ?? null,
             $body['remunerationType'] ?? 'fijo',
         ]);
         $doctorId = (int)$db->lastInsertId();
 
-        // Crear usuario de autenticación para el doctor
-        $baseEmail = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $body['name'] ?? 'doctor'));
-        $baseEmail = $baseEmail ?: 'doctor' . $doctorId;
-        $email = $baseEmail . '@integrarsalud.com';
+        // Usar email proporcionado o generar uno automáticamente
+        if (!empty($body['email'])) {
+            $email = trim(strtolower($body['email']));
+            // Verificar que no esté en uso
+            $checkStmt = $db->prepare('SELECT id FROM users WHERE email = ?');
+            $checkStmt->execute([$email]);
+            if ($checkStmt->fetch()) {
+                $db->rollBack();
+                json_error(409, 'El correo electrónico ya está registrado en el sistema.');
+            }
+        } else {
+            // Autogenerar desde el nombre
+            $baseEmail = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $body['name'] ?? 'doctor'));
+            $baseEmail = $baseEmail ?: 'doctor' . $doctorId;
+            $email = $baseEmail . '@integrarsalud.com';
+            $checkStmt = $db->prepare('SELECT id FROM users WHERE email = ?');
+            $counter = 1;
+            while ($checkStmt->execute([$email]) && $checkStmt->fetch()) {
+                $email = $baseEmail . $counter . '@integrarsalud.com';
+                $counter++;
+            }
+        }
+
         $password = 'password';
         $passwordHash = password_hash($password, PASSWORD_BCRYPT);
         $role = 'medico';
-
-        // Si el email ya existe, agregar número
-        $checkStmt = $db->prepare('SELECT id FROM users WHERE email = ?');
-        $counter = 1;
-        while ($checkStmt->execute([$email]) && $checkStmt->fetch()) {
-            $email = $baseEmail . $counter . '@integrarsalud.com';
-            $counter++;
-        }
 
         $stmt = $db->prepare('INSERT INTO users (name, email, password_hash, role, doctor_id, must_change_password) VALUES (?, ?, ?, ?, ?, ?)');
         $stmt->execute([$body['name'], $email, $passwordHash, $role, $doctorId, 1]);
@@ -80,6 +93,7 @@ if ($method === 'POST') {
 
 // ─── UPDATE ───
 if ($method === 'PUT') {
+    require_roles(['admin', 'administracion']);
     if (!$id) {
         json_error(400, 'ID de doctor requerido');
     }
@@ -91,13 +105,14 @@ if ($method === 'PUT') {
         json_error(404, 'Doctor no encontrado');
     }
 
-    $stmt = $db->prepare('UPDATE doctors SET name=?, specialty=?, license=?, color=?, phone=?, remuneration=?, remuneration_type=? WHERE id=?');
+    $stmt = $db->prepare('UPDATE doctors SET name=?, specialty=?, license=?, color=?, phone=?, meet_link=?, remuneration=?, remuneration_type=? WHERE id=?');
     $stmt->execute([
         $body['name'],
         $body['specialty'],
         $body['license'] ?? null,
         $body['color'] ?? 'indigo',
         $body['phone'] ?? null,
+        $body['meetLink'] ?? null,
         $body['remuneration'] ?? null,
         $body['remunerationType'] ?? 'fijo',
         $id,
@@ -121,6 +136,7 @@ if ($method === 'PUT') {
 
 // ─── DELETE ───
 if ($method === 'DELETE') {
+    require_roles(['admin', 'administracion']);
     if (!$id) {
         json_error(400, 'ID de doctor requerido');
     }

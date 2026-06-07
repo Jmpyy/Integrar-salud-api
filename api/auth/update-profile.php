@@ -24,9 +24,19 @@ try {
     $stmt = $db->prepare('UPDATE users SET name = ? WHERE id = ?');
     $stmt->execute([$name, $user['sub']]);
 
-    // Also sync name on affiliated doctor / staff record if exists
-    $db->prepare('UPDATE doctors     SET name = ? WHERE user_id = ?')->execute([$name, $user['sub']]);
-    $db->prepare('UPDATE admin_staff SET name = ? WHERE user_id = ?')->execute([$name, $user['sub']]);
+    // Sincronizar el nombre en el registro de médico o staff asociado si existe
+    $stmtUser = $db->prepare('SELECT doctor_id, staff_id FROM users WHERE id = ?');
+    $stmtUser->execute([$user['sub']]);
+    $userData = $stmtUser->fetch();
+
+    if ($userData) {
+        if ($userData['doctor_id']) {
+            $db->prepare('UPDATE doctors SET name = ? WHERE id = ?')->execute([$name, $userData['doctor_id']]);
+        }
+        if ($userData['staff_id']) {
+            $db->prepare('UPDATE admin_staff SET name = ? WHERE id = ?')->execute([$name, $userData['staff_id']]);
+        }
+    }
 
     json_success(200, ['message' => 'Nombre actualizado correctamente.', 'name' => $name]);
 } catch (Exception $e) {

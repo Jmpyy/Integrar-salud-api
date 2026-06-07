@@ -29,6 +29,7 @@ if ($method === 'GET' && !$id) {
 
 // ─── CREATE ───
 if ($method === 'POST') {
+    require_admin();
     $errors = validate_required($body, ['name', 'role']);
     if (!empty($errors)) {
         json_error(400, 'Datos incompletos', $errors);
@@ -47,21 +48,30 @@ if ($method === 'POST') {
         ]);
         $staffId = (int)$db->lastInsertId();
 
-        // Crear usuario de autenticación para el personal
-        $baseEmail = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $body['name'] ?? 'staff'));
-        $baseEmail = $baseEmail ?: 'staff' . $staffId;
-        $email = $baseEmail . '@integrarsalud.com';
+        // Usar email proporcionado o generar uno automáticamente
+        if (!empty($body['email'])) {
+            $email = trim(strtolower($body['email']));
+            $checkStmt = $db->prepare('SELECT id FROM users WHERE email = ?');
+            $checkStmt->execute([$email]);
+            if ($checkStmt->fetch()) {
+                $db->rollBack();
+                json_error(409, 'El correo electrónico ya está registrado en el sistema.');
+            }
+        } else {
+            $baseEmail = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $body['name'] ?? 'staff'));
+            $baseEmail = $baseEmail ?: 'staff' . $staffId;
+            $email = $baseEmail . '@integrarsalud.com';
+            $checkStmt = $db->prepare('SELECT id FROM users WHERE email = ?');
+            $counter = 1;
+            while ($checkStmt->execute([$email]) && $checkStmt->fetch()) {
+                $email = $baseEmail . $counter . '@integrarsalud.com';
+                $counter++;
+            }
+        }
+
         $password = 'password';
         $passwordHash = password_hash($password, PASSWORD_BCRYPT);
-        $userRole = 'recepcion';
-
-        // Si el email ya existe, agregar número
-        $checkStmt = $db->prepare('SELECT id FROM users WHERE email = ?');
-        $counter = 1;
-        while ($checkStmt->execute([$email]) && $checkStmt->fetch()) {
-            $email = $baseEmail . $counter . '@integrarsalud.com';
-            $counter++;
-        }
+        $userRole = (strtolower($body['role']) === 'administración' || strtolower($body['role']) === 'administracion') ? 'administracion' : 'recepcionista';
 
         $stmt = $db->prepare('INSERT INTO users (name, email, password_hash, role, staff_id, must_change_password) VALUES (?, ?, ?, ?, ?, ?)');
         $stmt->execute([$body['name'], $email, $passwordHash, $userRole, $staffId, 1]);
@@ -82,36 +92,54 @@ if ($method === 'POST') {
 
 // ─── UPDATE ───
 if ($method === 'PUT') {
+    require_admin();
     if (!$id) {
         json_error(400, 'ID requerido');
     }
 
-    $stmt = $db->prepare('SELECT id FROM admin_staff WHERE id = ?');
-    $stmt->execute([$id]);
-    if (!$stmt->fetch()) {
-        json_error(404, 'Empleado no encontrado');
+    $db->beginTransaction();
+    try {
+        $stmt = $db->prepare('SELECT id FROM admin_staff WHERE id = ?');
+        $stmt->execute([$id]);
+        if (!$stmt->fetch()) {
+            $db->rollBack();
+            json_error(404, 'Empleado no encontrado');
+        }
+
+        $stmt = $db->prepare('UPDATE admin_staff SET name=?, role=?, shift=?, phone=?, remuneration=?, remuneration_type=? WHERE id=?');
+        $stmt->execute([
+            $body['name'],
+            $body['role'],
+            $body['shift'] ?? 'Mañana',
+            $body['phone'] ?? null,
+            $body['remuneration'] ?? null,
+            $body['remunerationType'] ?? 'fijo',
+            $id,
+        ]);
+
+        // Actualizar el rol y el nombre también en la tabla `users` asociada para aplicar permisos reales.
+        $userRole = (strtolower($body['role']) === 'administración' || strtolower($body['role']) === 'administracion') ? 'admin' : 'recepcionista';
+        
+        $stmt = $db->prepare('UPDATE users SET name=?, role=? WHERE staff_id=?');
+        $stmt->execute([$body['name'], $userRole, $id]);
+
+        $db->commit();
+
+        $stmt = $db->prepare('SELECT * FROM admin_staff WHERE id = ?');
+        $stmt->execute([$id]);
+        $staff = $stmt->fetch();
+
+        json_success(200, ['staff' => $staff]);
+    } catch (Exception $e) {
+        $db->rollBack();
+        error_log('Error updating staff: ' . $e->getMessage());
+        json_error(500, 'Error al actualizar empleado: ' . $e->getMessage());
     }
-
-    $stmt = $db->prepare('UPDATE admin_staff SET name=?, role=?, shift=?, phone=?, remuneration=?, remuneration_type=? WHERE id=?');
-    $stmt->execute([
-        $body['name'],
-        $body['role'],
-        $body['shift'] ?? 'Mañana',
-        $body['phone'] ?? null,
-        $body['remuneration'] ?? null,
-        $body['remunerationType'] ?? 'fijo',
-        $id,
-    ]);
-
-    $stmt = $db->prepare('SELECT * FROM admin_staff WHERE id = ?');
-    $stmt->execute([$id]);
-    $staff = $stmt->fetch();
-
-    json_success(200, ['staff' => $staff]);
 }
 
 // ─── DELETE ───
 if ($method === 'DELETE') {
+    require_admin();
     if (!$id) {
         json_error(400, 'ID requerido');
     }

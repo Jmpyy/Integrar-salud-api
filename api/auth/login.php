@@ -25,8 +25,14 @@ if (!empty($errors)) {
 $db = Database::connect();
 
 // ── Rate Limiting ──────────────────────────────────────────
-$clientIp  = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
-$clientIp  = trim(explode(',', $clientIp)[0]); // Si hay proxy, tomar solo la primera IP
+// SECURITY: No confiar ciegamente en X-Forwarded-For (puede ser falsificado).
+// Solo usarlo si la variable de entorno TRUST_PROXY está activa (servidor detrás de un proxy/LB conocido).
+$trustProxy = Env::get('TRUST_PROXY', 'false') === 'true';
+if ($trustProxy && isset($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+    $clientIp = trim(explode(',', $_SERVER['HTTP_X_FORWARDED_FOR'])[0]);
+} else {
+    $clientIp = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+}
 $limiter   = new RateLimiter($db);
 
 if ($limiter->isBlocked($clientIp)) {
@@ -38,7 +44,7 @@ if ($limiter->isBlocked($clientIp)) {
 }
 // ──────────────────────────────────────────────────────────
 
-$stmt = $db->prepare('SELECT id, name, email, password_hash, role, must_change_password, doctor_id, staff_id FROM users WHERE email = ?');
+$stmt = $db->prepare('SELECT id, name, email, password_hash, role, must_change_password, doctor_id, staff_id, password_changed_at FROM users WHERE email = ?');
 $stmt->execute([$body['email']]);
 $user = $stmt->fetch();
 
@@ -50,6 +56,26 @@ if (!$user || !password_verify($body['password'], $user['password_hash'])) {
 
 // Login exitoso — resetear contador
 $limiter->recordSuccess($clientIp);
+
+// ── Password Expiration Policy ──
+if (!$user['must_change_password']) {
+    $stmtSettings = $db->query('SELECT config_json FROM system_settings WHERE id = 1');
+    $settingsRow = $stmtSettings->fetch();
+    $config = $settingsRow ? json_decode($settingsRow['config_json'], true) : [];
+    
+    $requireDays = isset($config['requirePasswordChangeDays']) ? (int)$config['requirePasswordChangeDays'] : 0;
+    
+    if ($requireDays > 0 && !empty($user['password_changed_at'])) {
+        $changedAt = new DateTime($user['password_changed_at']);
+        $now = new DateTime();
+        $diff = $now->diff($changedAt)->days;
+        
+        if ($diff >= $requireDays) {
+            $user['must_change_password'] = 1;
+            $db->prepare('UPDATE users SET must_change_password = 1 WHERE id = ?')->execute([$user['id']]);
+        }
+    }
+}
 
 // Generate tokens
 JWT::init();
@@ -75,6 +101,27 @@ $stmt->execute([$user['id'], $refreshToken]);
 // Remove password from response
 unset($user['password_hash']);
 $user['must_change_password'] = (bool)$user['must_change_password'];
+
+$rememberMe = isset($body['rememberMe']) ? (bool)$body['rememberMe'] : false;
+$authExpiry = $rememberMe ? (time() + 3600) : 0;
+$refreshExpiry = $rememberMe ? (time() + 604800) : 0;
+
+// Emitir cookies HttpOnly (no accesibles por JavaScript — protección XSS)
+$isSecure = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
+setcookie('auth_token', $accessToken, [
+    'expires'  => $authExpiry,
+    'path'     => '/',
+    'httponly' => true,
+    'samesite' => 'Strict',
+    'secure'   => $isSecure, // true automáticamente cuando se active HTTPS
+]);
+setcookie('refresh_token', $refreshToken, [
+    'expires'  => $refreshExpiry,
+    'path'     => '/',
+    'httponly' => true,
+    'samesite' => 'Strict',
+    'secure'   => $isSecure,
+]);
 
 json_success(200, [
     'token'        => $accessToken,

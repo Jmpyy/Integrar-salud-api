@@ -8,6 +8,9 @@
 require_once __DIR__ . '/core/Env.php';
 Env::load();
 
+// Zona horaria del sistema (Argentina, UTC-3)
+date_default_timezone_set('America/Argentina/Buenos_Aires');
+
 // CORS Headers — whitelist desde .env
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 $allowedOriginsRaw = Env::get('ALLOWED_ORIGINS', 'http://localhost:5173,http://localhost,http://localhost:3000');
@@ -34,6 +37,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(204);
     exit;
 }
+
+// ─── Security Headers (defensa en profundidad) ─────────────────────────────
+// Complementan los headers ya definidos en .htaccess
+header('X-Content-Type-Options: nosniff');               // Previene MIME sniffing
+header('X-Frame-Options: DENY');                          // Previene clickjacking
+header('X-XSS-Protection: 1; mode=block');               // XSS (legacy browsers)
+header('Referrer-Policy: strict-origin-when-cross-origin'); // No filtrar URL en referer
+header('Permissions-Policy: camera=(), microphone=(), geolocation=()'); // Limitar APIs del navegador
+// Content-Security-Policy: la API solo sirve JSON, no HTML
+header("Content-Security-Policy: default-src 'none'; frame-ancestors 'none'");
+// Remover server fingerprinting
+header_remove('X-Powered-By');
 
 // Load core files
 require_once __DIR__ . '/core/Database.php';
@@ -109,6 +124,22 @@ $routes = [
     'afip' => [
         'default' => 'api/afip/handler.php',
     ],
+    'settings' => [
+        'default' => 'api/settings/handler.php',
+    ],
+    'vademecum' => [
+        'default' => 'api/vademecum/handler.php',
+    ],
+    'push' => [
+        'subscribe'  => 'api/push/subscribe.php',
+        'public_key' => 'api/push/public_key.php',
+    ],
+    'telemedicine' => [
+        'verify_access'      => 'api/telemedicine/verify_access.php',
+        'check_status'       => 'api/telemedicine/check_status.php',
+        'set_delay'          => 'api/telemedicine/set_delay.php',
+        'setup_delay_column' => 'api/telemedicine/setup_delay_column.php',
+    ],
 ];
 
 // Set path info for endpoint files
@@ -168,6 +199,40 @@ switch ($resource) {
 
     case 'afip':
         $file = $routes['afip']['default'];
+        break;
+        
+    case 'settings':
+        $file = $routes['settings']['default'];
+        break;
+
+    case 'vademecum':
+        $file = $routes['vademecum']['default'];
+        break;
+
+    case 'push':
+        $action = $segments[1] ?? null;
+        if ($action === 'subscribe') {
+            $file = $routes['push']['subscribe'];
+        } elseif ($action === 'public_key') {
+            $file = $routes['push']['public_key'];
+        } else {
+            json_error(404, 'Endpoint push no encontrado');
+        }
+        break;
+
+    case 'telemedicine':
+        $action = $segments[1] ?? '';
+        if ($action === 'verify_access' || $action === 'verify_access.php') {
+            $file = $routes['telemedicine']['verify_access'];
+        } elseif ($action === 'check_status' || $action === 'check_status.php') {
+            $file = $routes['telemedicine']['check_status'];
+        } elseif ($action === 'set_delay' || $action === 'set_delay.php') {
+            $file = $routes['telemedicine']['set_delay'];
+        } elseif ($action === 'setup_delay_column' || $action === 'setup_delay_column.php') {
+            $file = $routes['telemedicine']['setup_delay_column'];
+        } else {
+            json_error(404, 'Endpoint telemedicine no encontrado');
+        }
         break;
 
     default:

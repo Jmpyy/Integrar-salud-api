@@ -73,6 +73,12 @@ function get_bearer_token(): ?string {
     if (preg_match('/Bearer\s+(.*)$/i', $auth, $matches)) {
         return trim($matches[1]);
     }
+
+    // Fallback: leer desde cookie HttpOnly si el header no viene (navegador)
+    if (!empty($_COOKIE['auth_token'])) {
+        return $_COOKIE['auth_token'];
+    }
+
     return null;
 }
 
@@ -102,6 +108,17 @@ function require_admin(): array {
     $user = require_auth();
     if (($user['role'] ?? '') !== 'admin') {
         json_error(403, 'Acceso restringido a administradores');
+    }
+    return $user;
+}
+
+/**
+ * Require specific roles
+ */
+function require_roles(array $allowedRoles): array {
+    $user = require_auth();
+    if (!in_array($user['role'] ?? '', $allowedRoles)) {
+        json_error(403, 'Acceso denegado: no tienes los permisos necesarios para realizar esta acción');
     }
     return $user;
 }

@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS users (
     must_change_password TINYINT(1) DEFAULT 1,
     doctor_id INT UNSIGNED NULL,
     staff_id INT UNSIGNED NULL,
+    password_changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_email (email),
@@ -29,6 +30,7 @@ CREATE TABLE IF NOT EXISTS doctors (
     license VARCHAR(50) DEFAULT NULL,
     color VARCHAR(20) NOT NULL DEFAULT 'indigo',
     phone VARCHAR(30) DEFAULT NULL,
+    meet_link VARCHAR(255) DEFAULT NULL,
     remuneration DECIMAL(12,2) DEFAULT NULL,
     remuneration_type ENUM('fijo', 'porcentaje') DEFAULT 'fijo',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -81,10 +83,14 @@ CREATE TABLE IF NOT EXISTS appointments (
     appointment_time TIME NOT NULL,
     duration DECIMAL(3,1) NOT NULL DEFAULT 1.0,
     type VARCHAR(50) DEFAULT NULL,
+    modalidad ENUM('presencial', 'virtual') DEFAULT 'presencial',
+    codigo_acceso VARCHAR(10) DEFAULT NULL,
+    estado_videollamada ENUM('pendiente', 'en_espera', 'activa', 'finalizada') DEFAULT 'pendiente',
     attendance ENUM('agendado', 'confirmado', 'en_espera', 'en_curso', 'finalizado', 'ausente') DEFAULT 'agendado',
     payment_status ENUM('pendiente', 'senado', 'pagado') DEFAULT 'pendiente',
     is_paid TINYINT(1) DEFAULT 0,
     payment_amount DECIMAL(10,2) DEFAULT 0.00,
+    paid_amount DECIMAL(10,2) DEFAULT 0.00,
     payment_method VARCHAR(30) DEFAULT NULL,
     is_block TINYINT(1) DEFAULT 0,
     notes TEXT,
@@ -226,6 +232,26 @@ CREATE TABLE IF NOT EXISTS afip_config (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ─── Push Subscriptions ───
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    endpoint TEXT NOT NULL,
+    p256dh VARCHAR(255) NOT NULL,
+    auth VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_user (user_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─── VAPID Keys ───
+CREATE TABLE IF NOT EXISTS vapid_keys (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    public_key TEXT NOT NULL,
+    private_key TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Insertar fila inicial de config si no existe
 INSERT IGNORE INTO afip_config (id) VALUES (1);
 
@@ -236,3 +262,25 @@ INSERT IGNORE INTO afip_config (id) VALUES (1);
 -- ─── Usuario Admin (password: admin123) ───
 INSERT INTO users (name, email, password_hash, role) VALUES
 ('Administrador', 'admin@integrarsalud.com', '$2y$10$fvFA/4bMLrvdi5cwCxGKD.yKwCFG2g.sDV1H3XUG9Rpvpi9iOJlFy', 'admin');
+
+-- ─── Vademecum Seed Data ───
+INSERT IGNORE INTO vademecum (name, quantity) VALUES 
+('ALPRAZOLAM 1 MG COMP', 0), ('ALPRAZOLAM 2 MG COMP', 0), ('ARIPIPRAZOL 10 MG COMP', 0),
+('BIPERIDENO 2 MG COMP', 0), ('CARBAMAZEPINA 200 MG COMP', 0), ('CARBONATO DE LITIO 300 MG COMP', 0),
+('CLONAZEPAM 0,5 MG COMP', 0), ('CLONAZEPAM 2 MG COMP', 0), ('CLORPROMAZINA 100 MG COMP', 0),
+('CLOTIAPINA 40 MG COMP', 0), ('DIAZEPAM 10 MG COMP', 0), ('DIVALPROATO DE SODIO 250 MG COMP', 0),
+('DIVALPROATO DE SODIO 500 MG COMP', 0), ('ESCITALOPRAM 10 MG COMP', 0), ('ESCITALOPRAM 20 MG COMP', 0),
+('FENITOINA 100 MG COMP', 0), ('FENOBARBITAL 100 MG COMP', 0), ('FLUOXETINA 20 MG COMP', 0),
+('HALOPERIDOL 5 MG COMP', 0), ('HALOPERIDOL 10 MG COMP', 0), ('LAMOTRIGINA 50 MG COMP', 0),
+('LAMOTRIGINA 100 MG COMP', 0), ('LEVETIRACETAM 500 MG COMP', 0), ('LEVOMEPROMAZINA 25 MG COMP', 0),
+('LORAZEPAM 2,5 MG COMP', 0), ('MEMANTINE 10 MG COMP', 0), ('OLANZAPINA 5 MG COMP', 0),
+('OLANZAPINA 10 MG COMP', 0), ('PAROXETINA 20 MG COMP', 0), ('PREGABALINA 25 MG CAPS', 0),
+('PREGABALINA 75 MG CAPS', 0), ('PROMETAZINA 25 MG COMP', 0), ('QUETIAPINA 25 MG COMP', 0),
+('QUETIAPINA 100 MG COMP', 0), ('RISPERIDONA 1 MG COMP', 0), ('RISPERIDONA 2 MG COMP', 0),
+('RISPERIDONA 3 MG COMP', 0), ('SERTRALINA 50 MG COMP', 0), ('TIORIDAZINA 200 MG COMP', 0),
+('TRIFLUOPERAZINA 10 MG COMP', 0), ('VALPROATO DE MAGNESIO 400 MG COMP', 0), ('VENLAFAXINA 75 MG COMP', 0),
+('ZOLPIDEM 10 MG COMP', 0), ('CLORPROMAZINA 25 MG X 5 ML AMP', 0), ('DIAZEPAM 10 MG X 5 ML AMP', 0),
+('FENITOINA 100 MG X 2 ML AMP', 0), ('FENOBARBITAL 100 MG X 2 ML AMP', 0), ('HALOPERIDOL 5 MG AMP', 0),
+('HALOPERIDOL DECANOATO X 3 ML AMP', 0), ('LEVOMEPROMAZINA 25 MG AMP', 0), ('LORAZEPAM 4 MG AMP', 0),
+('PROMETAZINA 25 MG X 2 ML AMP', 0), ('ZUCLOPENTIXOL ACETATO 50 MG AMP', 0), ('ZUCLOPENTIXOL DECANOATO 200 MG AMP', 0);
+

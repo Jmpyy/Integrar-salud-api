@@ -19,4 +19,9 @@ if (!empty($body['refreshToken'])) {
     $stmt->execute([$body['refreshToken']]);
 }
 
+// Limpiar cookies HttpOnly del navegador
+$cookieParams = ['expires' => time() - 3600, 'path' => '/', 'httponly' => true, 'samesite' => 'Strict'];
+setcookie('auth_token', '', $cookieParams);
+setcookie('refresh_token', '', $cookieParams);
+
 json_success(200, ['message' => 'Sesión cerrada correctamente']);

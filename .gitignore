@@ -29,3 +29,17 @@ Thumbs.db
 vendor/
 composer.lock
 .phpunit.result.cache
+
+# Integrar Salud - Sensitive Files
+VPS.txt
+config.php
+db_config.php
+database.sqlite
+database.sql
+migrate_*.php
+check_*.php
+generate_*.php
+*.bak
+*.sql
+*.zip
+*.rar

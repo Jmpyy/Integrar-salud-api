@@ -18,7 +18,10 @@ $subRoute = $pathParts[0] ?? null;
 
 // ─── GET LIST (Admin only) ───
 if ($method === 'GET' && !$subRoute) {
-    require_admin();
+    $user = require_auth();
+    if (!in_array($user['role'], ['admin', 'administracion'])) {
+        json_error(403, 'Acceso restringido');
+    }
     $dateFrom = $_GET['dateFrom'] ?? null;
     $dateTo   = $_GET['dateTo'] ?? null;
     $type     = $_GET['type'] ?? null;
@@ -32,7 +35,8 @@ if ($method === 'GET' && !$subRoute) {
     }
     if ($dateTo) {
         $sql .= ' AND transaction_date <= ?';
-        $params[] = $dateTo;
+        // Si la fecha viene sin hora, le agregamos 23:59:59 para incluir todo el día
+        $params[] = strlen($dateTo) === 10 ? $dateTo . ' 23:59:59' : $dateTo;
     }
     if ($type) {
         $sql .= ' AND type = ?';
@@ -121,25 +125,41 @@ if ($method === 'GET' && $subRoute === 'stats') {
 
 // ─── CREATE ───
 if ($method === 'POST') {
-    $errors = validate_required($body, ['type', 'concept', 'method', 'amount']);
-    if (!empty($errors)) {
-        json_error(400, 'Datos incompletos', $errors);
+    // Validación flexible (amount puede llegar como int/float desde JS)
+    $type    = !empty($body['type'])    ? $body['type']    : 'Ingreso';
+    $concept = !empty($body['concept']) ? $body['concept'] : 'Pago desde Agenda';
+    $method2 = !empty($body['method'])  ? $body['method']  : 'Efectivo';
+    $amount  = isset($body['amount'])   ? (float)$body['amount'] : 0.0;
+
+    if ($amount <= 0) {
+        debug_log('Transaccion rechazada - monto inválido', ['amount' => $amount, 'body' => $body]);
+        json_error(400, 'El monto debe ser mayor a 0');
     }
+
+    $cleanDoctorId  = (isset($body['doctor_id'])  && is_numeric($body['doctor_id']))  ? (int)$body['doctor_id']  : null;
+    $cleanStaffId   = (isset($body['staff_id'])   && is_numeric($body['staff_id']))   ? (int)$body['staff_id']   : null;
+    $cleanPatientId = (isset($body['patient_id']) && is_numeric($body['patient_id'])) ? (int)$body['patient_id'] : null;
+    $cleanDate = !empty($body['date']) ? $body['date'] : date('Y-m-d H:i:s');
 
     $stmt = $db->prepare('INSERT INTO transactions (type, concept, method, amount, receipt_number, notes, transaction_date, doctor_id, staff_id, patient_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
     $stmt->execute([
-        $body['type'],
-        $body['concept'],
-        $body['method'],
-        $body['amount'],
+        $type,
+        $concept,
+        $method2,
+        $amount,
         $body['receipt'] ?? null,
         $body['notes'] ?? null,
-        $body['date'] ?? date('Y-m-d H:i:s'),
-        $body['doctor_id'] ?? null,
-        $body['staff_id'] ?? null,
-        $body['patient_id'] ?? null,
+        $cleanDate,
+        $cleanDoctorId,
+        $cleanStaffId,
+        $cleanPatientId
     ]);
     $txId = (int)$db->lastInsertId();
+
+    if (!$txId) {
+        debug_log('Error al insertar transacción', $body);
+        json_error(500, 'Error al guardar la transacción en la base de datos');
+    }
 
     $stmt = $db->prepare('SELECT * FROM transactions WHERE id = ?');
     $stmt->execute([$txId]);
@@ -181,6 +201,41 @@ if ($method === 'GET' && $subRoute === 'export') {
     }
     fclose($output);
     exit;
+}
+
+// ─── DELETE ───
+if ($method === 'DELETE' && is_numeric($subRoute)) {
+    require_admin();
+    $id = (int)$subRoute;
+    
+    $stmt = $db->prepare('SELECT id FROM transactions WHERE id = ?');
+    $stmt->execute([$id]);
+    if (!$stmt->fetch()) {
+        json_error(404, 'Transacción no encontrada');
+    }
+
+    $db->prepare('DELETE FROM transactions WHERE id = ?')->execute([$id]);
+    json_success(200, ['message' => 'Transacción eliminada con éxito']);
+}
+
+// ─── UPDATE ───
+if ($method === 'PUT' && is_numeric($subRoute)) {
+    require_admin();
+    $id = (int)$subRoute;
+    
+    $stmt = $db->prepare('UPDATE transactions SET type = ?, concept = ?, method = ?, amount = ?, transaction_date = ?, notes = ?, receipt_number = ? WHERE id = ?');
+    $stmt->execute([
+        $body['type'],
+        $body['concept'],
+        $body['method'],
+        $body['amount'],
+        $body['date'] ?? date('Y-m-d H:i:s'),
+        $body['notes'] ?? null,
+        $body['receipt'] ?? null,
+        $id
+    ]);
+    
+    json_success(200, ['message' => 'Transacción actualizada']);
 }
 
 json_error(405, 'Method not allowed');

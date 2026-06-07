@@ -26,7 +26,7 @@ if (!$dbUser || !password_verify($body['current_password'], $dbUser['password_ha
 
 // Update password
 $newHash = password_hash($body['new_password'], PASSWORD_BCRYPT);
-$stmt = $db->prepare('UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ?');
+$stmt = $db->prepare('UPDATE users SET password_hash = ?, must_change_password = 0, password_changed_at = CURRENT_TIMESTAMP WHERE id = ?');
 $stmt->execute([$newHash, $user['sub']]);
 
 json_success(200, ['message' => 'Contraseña actualizada correctamente. Reingresa con tu nueva clave.']);

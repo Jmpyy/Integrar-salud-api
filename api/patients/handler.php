@@ -8,6 +8,7 @@
  */
 require_once __DIR__ . '/../../core/Database.php';
 require_once __DIR__ . '/../../core/Response.php';
+require_once __DIR__ . '/../../core/Validation.php';
 
 require_auth();
 $db = Database::connect();
@@ -92,25 +93,50 @@ if ($method === 'POST') {
         json_error(400, 'Datos incompletos', $errors);
     }
 
-    // Generar NHC si no viene
-    $nhc = $body['nhc'] ?? ('NHC-' . time() . '-' . rand(1000, 9999));
+    // Verificar si ya existe un paciente con el mismo DNI (evita duplicados)
+    if (!empty($body['dni'])) {
+        $stmtCheck = $db->prepare('SELECT * FROM patients WHERE dni = ?');
+        $stmtCheck->execute([$body['dni']]);
+        $existing = $stmtCheck->fetch();
+        if ($existing) {
+            // Ya existe: devolver el existente sin crear uno nuevo
+            json_success(201, ['patient' => $existing]);
+            exit;
+        }
+    }
+
+    // Generar NHC secuencial si no viene (NHC-00001, NHC-00002, ...)
+    if (!empty($body['nhc'])) {
+        $nhc = $body['nhc'];
+    } else {
+        // Buscar el último número secuencial usado
+        $stmtNhc = $db->query("SELECT nhc FROM patients WHERE nhc REGEXP '^NHC-[0-9]+$' ORDER BY CAST(SUBSTRING(nhc, 5) AS UNSIGNED) DESC LIMIT 1");
+        $lastNhc = $stmtNhc->fetchColumn();
+        if ($lastNhc) {
+            $lastNum = (int) substr($lastNhc, 4); // quitar "NHC-"
+            $nextNum = $lastNum + 1;
+        } else {
+            $nextNum = 1;
+        }
+        $nhc = 'NHC-' . str_pad($nextNum, 5, '0', STR_PAD_LEFT);
+    }
 
     $stmt = $db->prepare('INSERT INTO patients (nhc, name, dni, birth_date, gender, phone, email, address, emergency_contact, coverage, coverage_number, plan, allergies, diagnosis) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
     $stmt->execute([
         $nhc,
-        $body['name'],
-        $body['dni'] ?? null,
-        $body['birthDate'] ?? null,
-        $body['gender'] ?? null,
-        $body['phone'] ?? null,
-        $body['email'] ?? null,
-        $body['address'] ?? null,
-        $body['emergencyContact'] ?? null,
-        $body['coverage'] ?? 'Particular',
-        $body['coverageNumber'] ?? null,
-        $body['plan'] ?? null,
-        $body['allergies'] ?? null,
-        $body['diagnosis'] ?? null,
+        sanitize_string($body['name'], 150),
+        sanitize_dni($body['dni'] ?? null),
+        sanitize_date($body['birthDate'] ?? null),
+        sanitize_enum($body['gender'] ?? null, ['Masculino', 'Femenino', 'No binario', 'Prefiero no decir', 'Otro']),
+        sanitize_phone($body['phone'] ?? null),
+        sanitize_email($body['email'] ?? null),
+        sanitize_string($body['address'] ?? null, 300),
+        sanitize_string($body['emergencyContact'] ?? null, 200),
+        sanitize_string($body['coverage'] ?? 'Particular', 100),
+        sanitize_string($body['coverageNumber'] ?? null, 50),
+        sanitize_string($body['plan'] ?? null, 100),
+        sanitize_string($body['allergies'] ?? null, 500),
+        sanitize_string($body['diagnosis'] ?? null, 500),
     ]);
     $patientId = (int)$db->lastInsertId();
     debug_log('Patient created with ID', $patientId);
@@ -136,19 +162,19 @@ if ($method === 'PUT') {
 
     $stmt = $db->prepare('UPDATE patients SET name=?, dni=?, birth_date=?, gender=?, phone=?, email=?, address=?, emergency_contact=?, coverage=?, coverage_number=?, plan=?, allergies=?, diagnosis=? WHERE id=?');
     $stmt->execute([
-        $body['name'],
-        $body['dni'] ?? null,
-        $body['birthDate'] ?? null,
-        $body['gender'] ?? null,
-        $body['phone'] ?? null,
-        $body['email'] ?? null,
-        $body['address'] ?? null,
-        $body['emergencyContact'] ?? null,
-        $body['coverage'] ?? 'Particular',
-        $body['coverageNumber'] ?? null,
-        $body['plan'] ?? null,
-        $body['allergies'] ?? null,
-        $body['diagnosis'] ?? null,
+        sanitize_string($body['name'], 150),
+        sanitize_dni($body['dni'] ?? null),
+        sanitize_date($body['birthDate'] ?? null),
+        sanitize_enum($body['gender'] ?? null, ['Masculino', 'Femenino', 'No binario', 'Prefiero no decir', 'Otro']),
+        sanitize_phone($body['phone'] ?? null),
+        sanitize_email($body['email'] ?? null),
+        sanitize_string($body['address'] ?? null, 300),
+        sanitize_string($body['emergencyContact'] ?? null, 200),
+        sanitize_string($body['coverage'] ?? 'Particular', 100),
+        sanitize_string($body['coverageNumber'] ?? null, 50),
+        sanitize_string($body['plan'] ?? null, 100),
+        sanitize_string($body['allergies'] ?? null, 500),
+        sanitize_string($body['diagnosis'] ?? null, 500),
         $id,
     ]);
 
@@ -161,6 +187,7 @@ if ($method === 'PUT') {
 
 // ─── DELETE ───
 if ($method === 'DELETE') {
+    require_admin();
     if (!$id) {
         json_error(400, 'ID de paciente requerido');
     }
