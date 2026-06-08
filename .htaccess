@@ -1,4 +1,5 @@
 RewriteEngine On
+DirectorySlash Off
 
 # ─── HTTPS Force (descomentar en producción) ───────────────────
 # RewriteCond %{HTTPS} off

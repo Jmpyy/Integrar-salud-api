@@ -252,8 +252,27 @@ CREATE TABLE IF NOT EXISTS vapid_keys (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ─── System Settings ───
+CREATE TABLE IF NOT EXISTS system_settings (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    config_json JSON NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─── Vademecum ───
+CREATE TABLE IF NOT EXISTS vademecum (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(150) NOT NULL,
+    quantity INT UNSIGNED DEFAULT 0,
+    doses VARCHAR(100) DEFAULT '',
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_name (name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Insertar fila inicial de config si no existe
 INSERT IGNORE INTO afip_config (id) VALUES (1);
+INSERT IGNORE INTO system_settings (id, config_json) VALUES (1, '{}');
 
 -- ═══════════════════════════════════════════════════════════
 -- DATOS SEMILLA
