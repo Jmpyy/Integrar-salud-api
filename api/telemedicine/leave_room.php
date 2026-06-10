@@ -35,5 +35,6 @@ try {
 
     json_success(200, ['status' => 'left_room']);
 } catch (Exception $e) {
-    json_error(500, 'Error al salir de la sala de espera: ' . $e->getMessage());
+    error_log('Error en leave_room: ' . $e->getMessage());
+    json_error(500, 'Error interno del servidor al salir de la sala de espera.');
 }

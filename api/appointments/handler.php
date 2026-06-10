@@ -9,6 +9,7 @@
  */
 require_once __DIR__ . '/../../core/Database.php';
 require_once __DIR__ . '/../../core/Response.php';
+require_once __DIR__ . '/../../core/Validation.php';
 
 require_auth();
 $db = Database::connect();
@@ -65,9 +66,9 @@ function normalize_appointment(array $row): array {
 
 // ─── GET LIST ───
 if ($method === 'GET' && !$id) {
-    $dateFrom = $_GET['dateFrom'] ?? null;
-    $dateTo   = $_GET['dateTo'] ?? null;
-    $doctorId = $_GET['doctorId'] ?? null;
+    $dateFrom = sanitize_date($_GET['dateFrom'] ?? null);
+    $dateTo   = sanitize_date($_GET['dateTo'] ?? null);
+    $doctorId = sanitize_int($_GET['doctorId'] ?? null);
 
     $sql = 'SELECT a.*, p.name as patient_name, p.phone as patient_phone, p.coverage as patient_coverage, p.coverage_number as patient_coverage_number, p.dni as patient_dni, p.birth_date as patient_birth_date, p.gender as patient_gender, p.email as patient_email, p.address as patient_address, p.emergency_contact as patient_emergency_contact, p.plan as patient_plan, d.meet_link as doctor_meet_link
             FROM appointments a

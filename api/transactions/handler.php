@@ -7,6 +7,7 @@
  */
 require_once __DIR__ . '/../../core/Database.php';
 require_once __DIR__ . '/../../core/Response.php';
+require_once __DIR__ . '/../../core/Validation.php';
 
 require_auth();
 $db = Database::connect();
@@ -22,9 +23,11 @@ if ($method === 'GET' && !$subRoute) {
     if (!in_array($user['role'], ['admin', 'administracion'])) {
         json_error(403, 'Acceso restringido');
     }
-    $dateFrom = $_GET['dateFrom'] ?? null;
-    $dateTo   = $_GET['dateTo'] ?? null;
-    $type     = $_GET['type'] ?? null;
+    $dateFrom = sanitize_date($_GET['dateFrom'] ?? null);
+    $dateTo   = sanitize_date($_GET['dateTo'] ?? null);
+    $type     = sanitize_string($_GET['type'] ?? null);
+    $doctorId = sanitize_int($_GET['doctor_id'] ?? null);
+    $staffId  = sanitize_int($_GET['staff_id'] ?? null);
 
     $sql = 'SELECT * FROM transactions WHERE 1=1';
     $params = [];
@@ -42,13 +45,13 @@ if ($method === 'GET' && !$subRoute) {
         $sql .= ' AND type = ?';
         $params[] = $type;
     }
-    if (isset($_GET['doctor_id'])) {
+    if ($doctorId) {
         $sql .= ' AND doctor_id = ?';
-        $params[] = $_GET['doctor_id'];
+        $params[] = $doctorId;
     }
-    if (isset($_GET['staff_id'])) {
+    if ($staffId) {
         $sql .= ' AND staff_id = ?';
-        $params[] = $_GET['staff_id'];
+        $params[] = $staffId;
     }
 
     $sql .= ' ORDER BY transaction_date DESC';
@@ -79,8 +82,8 @@ if ($method === 'GET' && !$subRoute) {
 
 // ─── STATS ───
 if ($method === 'GET' && $subRoute === 'stats') {
-    $dateFrom = $_GET['dateFrom'] ?? date('Y-m-01');
-    $dateTo   = $_GET['dateTo'] ?? date('Y-m-d');
+    $dateFrom = sanitize_date($_GET['dateFrom'] ?? date('Y-m-01')) ?? date('Y-m-01');
+    $dateTo   = sanitize_date($_GET['dateTo'] ?? date('Y-m-d')) ?? date('Y-m-d');
 
     $stmt = $db->prepare('
         SELECT

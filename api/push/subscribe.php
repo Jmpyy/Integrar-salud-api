@@ -39,6 +39,7 @@ try {
 
     echo json_encode(['success' => true]);
 } catch (Throwable $e) {
+    error_log('Error en push subscribe: ' . $e->getMessage());
     http_response_code(500);
-    echo json_encode(['error' => 'Error del servidor: ' . $e->getMessage()]);
+    echo json_encode(['error' => 'Error interno del servidor.']);
 }

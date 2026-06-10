@@ -40,5 +40,6 @@ try {
 
     json_success(200, ['message' => 'Nombre actualizado correctamente.', 'name' => $name]);
 } catch (Exception $e) {
-    json_error(500, 'Error al actualizar el perfil: ' . $e->getMessage());
+    error_log('Error al actualizar perfil: ' . $e->getMessage());
+    json_error(500, 'Error interno del servidor al actualizar el perfil.');
 }

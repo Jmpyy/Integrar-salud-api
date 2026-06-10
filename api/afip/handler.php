@@ -24,7 +24,8 @@ if ($method === 'GET' && $subRoute === 'status') {
         $status = AfipManager::getStatus();
         json_success(200, ['status' => $status]);
     } catch (Exception $e) {
-        json_error(500, 'AFIP Offline o Error de Configuración', ['detail' => $e->getMessage()]);
+        error_log('Error de AFIP: ' . $e->getMessage());
+        json_error(500, 'AFIP Offline o Error de Configuración. Revisa los logs internos.');
     }
 }
 
@@ -134,7 +135,8 @@ if ($method === 'POST' && $subRoute === 'emitir') {
         ]);
         
     } catch (Exception $e) {
-        json_error(500, 'Error de AFIP', ['detail' => $e->getMessage()]);
+        error_log('Error al facturar con AFIP: ' . $e->getMessage());
+        json_error(500, 'Error de AFIP al procesar la factura. Revisa los logs internos.');
     }
 }
 

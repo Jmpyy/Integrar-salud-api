@@ -5,6 +5,7 @@
  */
 
 // Load environment variables first
+if (function_exists('opcache_reset')) opcache_reset();
 require_once __DIR__ . '/core/Env.php';
 Env::load();
 

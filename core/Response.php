@@ -95,7 +95,24 @@ function require_auth(): array {
     }
 
     try {
-        return JWT::decode($token);
+        $payload = JWT::decode($token);
+        
+        // Active Validation against DB (Revocation Check)
+        require_once __DIR__ . '/Database.php';
+        $db = Database::connect();
+        $stmt = $db->prepare('SELECT role, must_change_password FROM users WHERE id = ?');
+        $stmt->execute([$payload['sub']]);
+        $user = $stmt->fetch();
+        
+        if (!$user) {
+            json_error(401, 'Usuario no encontrado o cuenta eliminada. Acceso revocado.');
+        }
+        
+        // Update payload with fresh DB data in case role was changed
+        $payload['role'] = $user['role'];
+        $payload['must_change_password'] = (bool)$user['must_change_password'];
+        
+        return $payload;
     } catch (Exception $e) {
         json_error(401, $e->getMessage());
     }

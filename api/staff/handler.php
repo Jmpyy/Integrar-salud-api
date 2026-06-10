@@ -86,7 +86,7 @@ if ($method === 'POST') {
     } catch (Exception $e) {
         $db->rollBack();
         error_log('Error creating staff: ' . $e->getMessage());
-        json_error(500, 'Error al crear empleado: ' . $e->getMessage());
+        json_error(500, 'Error interno del servidor al crear empleado.');
     }
 }
 
@@ -133,7 +133,7 @@ if ($method === 'PUT') {
     } catch (Exception $e) {
         $db->rollBack();
         error_log('Error updating staff: ' . $e->getMessage());
-        json_error(500, 'Error al actualizar empleado: ' . $e->getMessage());
+        json_error(500, 'Error interno del servidor al actualizar empleado.');
     }
 }
 

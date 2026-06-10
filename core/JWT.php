@@ -10,7 +10,12 @@ class JWT {
     private static int $refreshTtl = 604800; // 7 días
 
     public static function init(): void {
-        $envSecret = getenv('JWT_SECRET');
+        if (isset(self::$secret)) return;
+        
+        require_once __DIR__ . '/Env.php';
+        Env::load();
+        
+        $envSecret = Env::get('JWT_SECRET');
         
         // Si hay una secret en el env, usarla (Prioridad Máxima)
         if ($envSecret) {
@@ -18,19 +23,13 @@ class JWT {
             return;
         }
 
-        // Si no hay secret, SOLO permitir fallback si estamos en localhost/dev
-        $host = $_SERVER['HTTP_HOST'] ?? '';
-        $isLocal = ($host === 'localhost' || $host === '127.0.0.1' || str_contains($host, 'localhost:'));
-
-        if ($isLocal) {
-            self::$secret = 'integrar_salud_local_dev_key_2026';
-        } else {
-            // En producción SI O SI debe haber una variable de entorno
-            header('Content-Type: application/json');
-            http_response_code(500);
-            echo json_encode(['error' => true, 'message' => 'Seguridad: JWT_SECRET no configurada en el servidor.']);
-            exit;
-        }
+        // En producción SI O SI debe haber una variable de entorno
+        header('Content-Type: application/json');
+        http_response_code(500);
+        $host = $_SERVER['HTTP_HOST'] ?? 'unknown';
+        $dir = __DIR__;
+        echo json_encode(['error' => true, 'message' => "Seguridad: JWT_SECRET no configurada. HOST: $host, DIR: $dir"]);
+        exit;
     }
 
     /**

@@ -42,5 +42,6 @@ try {
         'delayMessage' => $delayMessage
     ]);
 } catch (Exception $e) {
-    json_error(500, 'Error interno del servidor: ' . $e->getMessage());
+    error_log('Error en set_delay: ' . $e->getMessage());
+    json_error(500, 'Error interno del servidor.');
 }

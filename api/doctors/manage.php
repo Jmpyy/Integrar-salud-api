@@ -87,7 +87,7 @@ if ($method === 'POST') {
     } catch (Exception $e) {
         $db->rollBack();
         error_log('Error creating doctor: ' . $e->getMessage());
-        json_error(500, 'Error al crear doctor: ' . $e->getMessage());
+        json_error(500, 'Error interno del servidor al crear doctor.');
     }
 }
 

@@ -8,7 +8,7 @@ class Env {
     private static bool $loaded = false;
 
     public static function load(string $path = null): void {
-        if (self::$loaded) return;
+        // if (self::$loaded) return;
 
         $envFile = $path ?? __DIR__ . '/../.env';
 
@@ -45,7 +45,13 @@ class Env {
 
     public static function get(string $key, mixed $default = null): mixed {
         $value = getenv($key);
-        return ($value !== false) ? $value : $default;
+        if (($value === false || $value === '') && isset($_ENV[$key])) {
+            $value = $_ENV[$key];
+        }
+        if (($value === false || $value === '') && isset($_SERVER[$key])) {
+            $value = $_SERVER[$key];
+        }
+        return ($value !== false && $value !== '') ? $value : $default;
     }
 
     public static function bool(string $key, bool $default = false): bool {

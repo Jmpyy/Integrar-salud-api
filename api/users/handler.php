@@ -31,7 +31,8 @@ if ($method === 'GET' && !$id) {
         $users = $stmt->fetchAll();
         json_success(200, ['users' => $users]);
     } catch (Exception $e) {
-        json_error(500, 'Error al listar usuarios: ' . $e->getMessage());
+        error_log('Error al listar usuarios: ' . $e->getMessage());
+        json_error(500, 'Error interno del servidor al listar usuarios.');
     }
 }
 
@@ -58,7 +59,8 @@ if ($method === 'POST') {
         if ($e->getCode() == 23000) {
             json_error(400, 'El email ya está registrado.');
         }
-        json_error(500, 'Error al crear usuario: ' . $e->getMessage());
+        error_log('Error al crear usuario: ' . $e->getMessage());
+        json_error(500, 'Error interno del servidor al crear usuario.');
     }
 }
 
@@ -80,7 +82,8 @@ if ($method === 'PUT' && $id) {
         
         json_error(400, 'No se proporcionaron campos para actualizar.');
     } catch (Exception $e) {
-        json_error(500, 'Error al actualizar usuario: ' . $e->getMessage());
+        error_log('Error al actualizar usuario: ' . $e->getMessage());
+        json_error(500, 'Error interno del servidor al actualizar usuario.');
     }
 }
 
@@ -98,7 +101,8 @@ if ($method === 'DELETE' && $id) {
         $stmt->execute([$id]);
         json_success(200, ['message' => 'Acceso revocado correctamente (usuario eliminado).']);
     } catch (Exception $e) {
-        json_error(500, 'Error al eliminar usuario: ' . $e->getMessage());
+        error_log('Error al eliminar usuario: ' . $e->getMessage());
+        json_error(500, 'Error interno del servidor al eliminar usuario.');
     }
 }
 

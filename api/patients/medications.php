@@ -88,7 +88,7 @@ if ($method === 'PATCH') {
         json_success(200, ['medication' => $medication]);
     } catch (Exception $e) {
         debug_log('ERROR in PATCH /medications', $e->getMessage());
-        json_error(500, 'Error interno del servidor: ' . $e->getMessage());
+        json_error(500, 'Error interno del servidor.');
     }
 }
 

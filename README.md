@@ -17,6 +17,11 @@ Esta es la API central de **Integrar Salud**, encargada de procesar la lógica d
 
 ---
 
+## 🛠️ Correcciones y Mejoras Recientes
+- **Compatibilidad con Entornos XAMPP/Windows:** Solución al fallo de carga crítica del `JWT_SECRET` (Error 500) modificando la abstracción de variables de entorno (`core/Env.php`) para incluir el arreglo superglobal `$_ENV` como sistema de respaldo primario, garantizando un despliegue sin fallos en servidores de desarrollo locales y VPS sin apache mod_env.
+
+---
+
 ## 🛠️ Stack Tecnológico
 - **Lenguaje:** [PHP 8.x](https://www.php.net/) (Vanilla, arquitectura modular sin frameworks pesados para máximo rendimiento).
 - **Base de Datos:** [MySQL / MariaDB](https://www.mysql.com/) (Esquema relacional optimizado para historial médico).
