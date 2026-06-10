@@ -26,7 +26,7 @@ $db = Database::connect();
 
 // 1. Primero buscar el turno por DNI + Código sin restricción de fecha
 $stmt = $db->prepare('
-    SELECT a.id, a.estado_videollamada, a.appointment_date, a.appointment_time, d.name as doctor_name, p.name as patient_name
+    SELECT a.id, a.estado_videollamada, a.appointment_date, a.appointment_time, a.payment_status, d.name as doctor_name, p.name as patient_name
     FROM appointments a
     JOIN patients p ON a.patient_id = p.id
     JOIN doctors d ON a.doctor_id = d.id
@@ -41,6 +41,10 @@ $appointment = $stmt->fetch();
 
 if (!$appointment) {
     json_error(404, 'Credenciales incorrectas. Verificá tu DNI y el Código de Acceso.');
+}
+
+if ($appointment['payment_status'] !== 'pagado') {
+    json_error(402, 'La consulta requiere pago previo. Por favor, contactá con recepción para abonar la consulta; de otra manera, no podrás ingresar a la sala.');
 }
 
 // 2. Verificar si ya finalizó
