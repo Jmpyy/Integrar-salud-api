@@ -63,8 +63,8 @@ $minutesDifference = ($appointmentDateTime - $now) / 60;
 
 $isCallActive = in_array($appointment['estado_videollamada'], ['activa', 'en_curso']);
 
-// Bloquear si es de un día anterior, o si faltan más de 15 minutos (a menos que el médico ya haya iniciado la llamada)
-if (!$isCallActive && ($appointmentDate < $today || $minutesDifference > 15)) {
+// Bloquear si es de un día anterior, o si faltan más de 5 minutos (a menos que el médico ya haya iniciado la llamada)
+if (!$isCallActive && ($appointmentDate < $today || $minutesDifference > 5)) {
     $fechaFormateada = date('d/m/Y', strtotime($appointmentDate));
     $horaFormateada  = date('H:i', strtotime($appointmentTime));
     
@@ -74,9 +74,9 @@ if (!$isCallActive && ($appointmentDate < $today || $minutesDifference > 15)) {
         $statusKey = 'past';
         $mensaje = 'Tu consulta virtual del ' . $fechaFormateada . ' a las ' . $horaFormateada . 'h ya pasó.';
     } else if ($appointmentDate === $today) {
-        $mensaje = 'Aún falta para tu turno. Podés ingresar a la sala de espera 15 minutos antes de las ' . $horaFormateada . 'h.';
+        $mensaje = 'Aún falta para tu turno. Podés ingresar a la sala de espera 5 minutos antes de las ' . $horaFormateada . 'h.';
     } else {
-        $mensaje = 'Tu turno está programado para el ' . $fechaFormateada . ' a las ' . $horaFormateada . 'h. Podés ingresar 15 minutos antes.';
+        $mensaje = 'Tu turno está programado para el ' . $fechaFormateada . ' a las ' . $horaFormateada . 'h. Podés ingresar 5 minutos antes.';
     }
 
     // HTTP 202 = turno encontrado pero acceso no habilitado aún
