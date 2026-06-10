@@ -61,8 +61,10 @@ $appointmentDateTime = strtotime("$appointmentDate $appointmentTime");
 $now = time();
 $minutesDifference = ($appointmentDateTime - $now) / 60;
 
-// Bloquear si es de un día anterior, o si faltan más de 15 minutos
-if ($appointmentDate < $today || $minutesDifference > 15) {
+$isCallActive = in_array($appointment['estado_videollamada'], ['activa', 'en_curso']);
+
+// Bloquear si es de un día anterior, o si faltan más de 15 minutos (a menos que el médico ya haya iniciado la llamada)
+if (!$isCallActive && ($appointmentDate < $today || $minutesDifference > 15)) {
     $fechaFormateada = date('d/m/Y', strtotime($appointmentDate));
     $horaFormateada  = date('H:i', strtotime($appointmentTime));
     
