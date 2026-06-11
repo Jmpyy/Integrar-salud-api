@@ -64,17 +64,19 @@ function normalize_appointment(array $row): array {
     ];
 }
 
+$baseFetchSql = 'SELECT a.*, p.name as patient_name, p.phone as patient_phone, p.coverage as patient_coverage, p.coverage_number as patient_coverage_number, p.dni as patient_dni, p.birth_date as patient_birth_date, p.gender as patient_gender, p.email as patient_email, p.address as patient_address, p.emergency_contact as patient_emergency_contact, p.plan as patient_plan, d.meet_link as doctor_meet_link
+                 FROM appointments a
+                 LEFT JOIN patients p ON a.patient_id = p.id
+                 LEFT JOIN doctors d ON a.doctor_id = d.id';
+
+
 // ─── GET LIST ───
 if ($method === 'GET' && !$id) {
     $dateFrom = sanitize_date($_GET['dateFrom'] ?? null);
     $dateTo   = sanitize_date($_GET['dateTo'] ?? null);
     $doctorId = sanitize_int($_GET['doctorId'] ?? null);
 
-    $sql = 'SELECT a.*, p.name as patient_name, p.phone as patient_phone, p.coverage as patient_coverage, p.coverage_number as patient_coverage_number, p.dni as patient_dni, p.birth_date as patient_birth_date, p.gender as patient_gender, p.email as patient_email, p.address as patient_address, p.emergency_contact as patient_emergency_contact, p.plan as patient_plan, d.meet_link as doctor_meet_link
-            FROM appointments a
-            LEFT JOIN patients p ON a.patient_id = p.id
-            LEFT JOIN doctors d ON a.doctor_id = d.id
-            WHERE 1=1';
+    $sql = $baseFetchSql . ' WHERE 1=1';
     $params = [];
 
     if ($dateFrom) {
@@ -141,7 +143,7 @@ if ($method === 'POST') {
     $modalidad = $body['modalidad'] ?? 'presencial';
     $codigoAcceso = null;
     if ($modalidad === 'virtual') {
-        $codigoAcceso = substr(str_shuffle("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"), 0, 6);
+        $codigoAcceso = strtoupper(bin2hex(random_bytes(3))); // 6 caracteres criptográficamente seguros
     }
 
     $stmt = $db->prepare('INSERT INTO appointments (doctor_id, patient_id, title, appointment_date, appointment_time, duration, type, attendance, payment_status, is_paid, payment_amount, paid_amount, paid_method, payment_method, is_block, notes, wait_ticket, referrer, color_class, modalidad, codigo_acceso, estado_videollamada) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
@@ -208,20 +210,11 @@ if ($method === 'POST') {
     }
 
     // Fetch created with normalize_appointment and Patient JOIN
-    $sqlFetch = 'SELECT a.*, p.name as patient_name, p.phone as patient_phone,
-                        p.coverage as patient_coverage, p.coverage_number as patient_coverage_number, p.dni as patient_dni, p.birth_date as patient_birth_date, p.gender as patient_gender, p.email as patient_email, p.address as patient_address, p.emergency_contact as patient_emergency_contact, p.plan as patient_plan
-                 FROM appointments a
-                 LEFT JOIN patients p ON a.patient_id = p.id
-                 WHERE a.id = ?';
+    $sqlFetch = $baseFetchSql . ' WHERE a.id = ?';
 
     if (count($created) > 1) {
         $placeholders = implode(',', array_fill(0, count($created), '?'));
-        $sqlFetchMult = "SELECT a.*, p.name as patient_name, p.phone as patient_phone,
-                                 p.coverage as patient_coverage, p.coverage_number as patient_coverage_number, p.dni as patient_dni, p.birth_date as patient_birth_date, p.gender as patient_gender, p.email as patient_email, p.address as patient_address, p.emergency_contact as patient_emergency_contact, p.plan as patient_plan
-                          FROM appointments a
-                          LEFT JOIN patients p ON a.patient_id = p.id
-                          WHERE a.id IN ($placeholders)
-                          ORDER BY a.appointment_date";
+        $sqlFetchMult = $baseFetchSql . " WHERE a.id IN ($placeholders) ORDER BY a.appointment_date";
         $stmt = $db->prepare($sqlFetchMult);
         $stmt->execute($created);
         $rows = $stmt->fetchAll();
@@ -255,7 +248,7 @@ if ($method === 'PUT') {
     $modalidad = $body['modalidad'] ?? $existing['modalidad'];
     $codigoAcceso = $existing['codigo_acceso'];
     if ($modalidad === 'virtual' && !$codigoAcceso) {
-        $codigoAcceso = substr(str_shuffle("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"), 0, 6);
+        $codigoAcceso = strtoupper(bin2hex(random_bytes(3))); // 6 caracteres criptográficamente seguros
     }
     $estadoVideollamada = $body['estadoVideollamada'] ?? $existing['estado_videollamada'];
 
@@ -286,13 +279,7 @@ if ($method === 'PUT') {
         $id,
     ]);
 
-    $stmt = $db->prepare('
-        SELECT a.*, p.name as patient_name, p.phone as patient_phone,
-               p.coverage as patient_coverage, p.coverage_number as patient_coverage_number, p.dni as patient_dni, p.birth_date as patient_birth_date, p.gender as patient_gender, p.email as patient_email, p.address as patient_address, p.emergency_contact as patient_emergency_contact, p.plan as patient_plan, d.meet_link as doctor_meet_link
-        FROM appointments a
-        LEFT JOIN patients p ON a.patient_id = p.id
-        LEFT JOIN doctors d ON a.doctor_id = d.id
-        WHERE a.id = ?');
+    $stmt = $db->prepare($baseFetchSql . ' WHERE a.id = ?');
     $stmt->execute([$id]);
     $row = $stmt->fetch();
 
@@ -367,13 +354,7 @@ if ($method === 'PATCH' && isset($pathParts[1]) && $pathParts[1] === 'status') {
     $stmt = $db->prepare($sql);
     $stmt->execute($params);
 
-    $stmt = $db->prepare('
-        SELECT a.*, p.name as patient_name, p.phone as patient_phone,
-               p.coverage as patient_coverage, p.coverage_number as patient_coverage_number, p.dni as patient_dni, p.birth_date as patient_birth_date, p.gender as patient_gender, p.email as patient_email, p.address as patient_address, p.emergency_contact as patient_emergency_contact, p.plan as patient_plan, d.meet_link as doctor_meet_link
-        FROM appointments a
-        LEFT JOIN patients p ON a.patient_id = p.id
-        LEFT JOIN doctors d ON a.doctor_id = d.id
-        WHERE a.id = ?');
+    $stmt = $db->prepare($baseFetchSql . ' WHERE a.id = ?');
     $stmt->execute([$id]);
     $row = $stmt->fetch();
 
@@ -409,13 +390,7 @@ if ($method === 'PATCH' && isset($pathParts[1]) && $pathParts[1] === 'video_stat
     $stmt = $db->prepare('UPDATE appointments SET estado_videollamada = ? WHERE id = ?');
     $stmt->execute([$body['estado_videollamada'], $id]);
 
-    $stmt = $db->prepare('
-        SELECT a.*, p.name as patient_name, p.phone as patient_phone,
-               p.coverage as patient_coverage, p.coverage_number as patient_coverage_number, p.dni as patient_dni, p.birth_date as patient_birth_date, p.gender as patient_gender, p.email as patient_email, p.address as patient_address, p.emergency_contact as patient_emergency_contact, p.plan as patient_plan, d.meet_link as doctor_meet_link
-        FROM appointments a
-        LEFT JOIN patients p ON a.patient_id = p.id
-        LEFT JOIN doctors d ON a.doctor_id = d.id
-        WHERE a.id = ?');
+    $stmt = $db->prepare($baseFetchSql . ' WHERE a.id = ?');
     $stmt->execute([$id]);
     $row = $stmt->fetch();
 
@@ -473,12 +448,7 @@ if ($method === 'PATCH' && isset($pathParts[1]) && $pathParts[1] === 'payment') 
     // que calcula el monto exacto (saldo menos seña previa) y lo envía via POST /api/transactions.
     // No se auto-registra aquí para evitar duplicados.
 
-    $stmt = $db->prepare('
-        SELECT a.*, p.name as patient_name, p.phone as patient_phone,
-               p.coverage as patient_coverage, p.coverage_number as patient_coverage_number, p.dni as patient_dni, p.birth_date as patient_birth_date, p.gender as patient_gender, p.email as patient_email, p.address as patient_address, p.emergency_contact as patient_emergency_contact, p.plan as patient_plan
-        FROM appointments a
-        LEFT JOIN patients p ON a.patient_id = p.id
-        WHERE a.id = ?');
+    $stmt = $db->prepare($baseFetchSql . ' WHERE a.id = ?');
     $stmt->execute([$id]);
     $row = $stmt->fetch();
 

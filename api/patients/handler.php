@@ -105,40 +105,47 @@ if ($method === 'POST') {
         }
     }
 
-    // Generar NHC secuencial si no viene (NHC-00001, NHC-00002, ...)
-    if (!empty($body['nhc'])) {
-        $nhc = $body['nhc'];
-    } else {
-        // Buscar el último número secuencial usado
-        $stmtNhc = $db->query("SELECT nhc FROM patients WHERE nhc REGEXP '^NHC-[0-9]+$' ORDER BY CAST(SUBSTRING(nhc, 5) AS UNSIGNED) DESC LIMIT 1");
-        $lastNhc = $stmtNhc->fetchColumn();
-        if ($lastNhc) {
-            $lastNum = (int) substr($lastNhc, 4); // quitar "NHC-"
-            $nextNum = $lastNum + 1;
+    $db->beginTransaction();
+    try {
+        // Generar NHC secuencial si no viene (NHC-00001, NHC-00002, ...)
+        if (!empty($body['nhc'])) {
+            $nhc = $body['nhc'];
         } else {
-            $nextNum = 1;
+            // Buscar el último número secuencial usado con FOR UPDATE para evitar race condition
+            $stmtNhc = $db->query("SELECT nhc FROM patients WHERE nhc REGEXP '^NHC-[0-9]+$' ORDER BY CAST(SUBSTRING(nhc, 5) AS UNSIGNED) DESC LIMIT 1 FOR UPDATE");
+            $lastNhc = $stmtNhc->fetchColumn();
+            if ($lastNhc) {
+                $lastNum = (int) substr($lastNhc, 4); // quitar "NHC-"
+                $nextNum = $lastNum + 1;
+            } else {
+                $nextNum = 1;
+            }
+            $nhc = 'NHC-' . str_pad($nextNum, 5, '0', STR_PAD_LEFT);
         }
-        $nhc = 'NHC-' . str_pad($nextNum, 5, '0', STR_PAD_LEFT);
-    }
 
-    $stmt = $db->prepare('INSERT INTO patients (nhc, name, dni, birth_date, gender, phone, email, address, emergency_contact, coverage, coverage_number, plan, allergies, diagnosis) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
-    $stmt->execute([
-        $nhc,
-        sanitize_string($body['name'], 150),
-        sanitize_dni($body['dni'] ?? null),
-        sanitize_date($body['birthDate'] ?? null),
-        sanitize_enum($body['gender'] ?? null, ['femenino', 'masculino', 'otro', 'prefiero_no_decir']),
-        sanitize_phone($body['phone'] ?? null),
-        sanitize_email($body['email'] ?? null),
-        sanitize_string($body['address'] ?? null, 300),
-        sanitize_string($body['emergencyContact'] ?? null, 200),
-        sanitize_string($body['coverage'] ?? 'Particular', 100),
-        sanitize_string($body['coverageNumber'] ?? null, 50),
-        sanitize_string($body['plan'] ?? null, 100),
-        sanitize_string($body['allergies'] ?? null, 500),
-        sanitize_string($body['diagnosis'] ?? null, 500),
-    ]);
-    $patientId = (int)$db->lastInsertId();
+        $stmt = $db->prepare('INSERT INTO patients (nhc, name, dni, birth_date, gender, phone, email, address, emergency_contact, coverage, coverage_number, plan, allergies, diagnosis) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+        $stmt->execute([
+            $nhc,
+            sanitize_string($body['name'], 150),
+            sanitize_dni($body['dni'] ?? null),
+            sanitize_date($body['birthDate'] ?? null),
+            sanitize_enum($body['gender'] ?? null, ['femenino', 'masculino', 'otro', 'prefiero_no_decir']),
+            sanitize_phone($body['phone'] ?? null),
+            sanitize_email($body['email'] ?? null),
+            sanitize_string($body['address'] ?? null, 300),
+            sanitize_string($body['emergencyContact'] ?? null, 200),
+            sanitize_string($body['coverage'] ?? 'Particular', 100),
+            sanitize_string($body['coverageNumber'] ?? null, 50),
+            sanitize_string($body['plan'] ?? null, 100),
+            sanitize_string($body['allergies'] ?? null, 500),
+            sanitize_string($body['diagnosis'] ?? null, 500),
+        ]);
+        $patientId = (int)$db->lastInsertId();
+        $db->commit();
+    } catch (Exception $e) {
+        $db->rollBack();
+        json_error(500, 'Error al crear paciente: ' . $e->getMessage());
+    }
     debug_log('Patient created with ID', $patientId);
 
     $stmt = $db->prepare('SELECT * FROM patients WHERE id = ?');
