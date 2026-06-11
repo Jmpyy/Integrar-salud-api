@@ -102,6 +102,7 @@ CREATE TABLE IF NOT EXISTS appointments (
     afip_cae_vence DATE DEFAULT NULL,
     afip_nro INT UNSIGNED DEFAULT NULL,
     afip_punto_venta INT UNSIGNED DEFAULT NULL,
+    delay_message VARCHAR(255) DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_date (appointment_date),
@@ -116,6 +117,7 @@ CREATE TABLE IF NOT EXISTS soap_history (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     patient_id INT UNSIGNED NOT NULL,
     doctor_id INT UNSIGNED NOT NULL,
+    date DATETIME DEFAULT NULL,
     linked_to_id INT UNSIGNED DEFAULT NULL,
     is_aclaracion TINYINT(1) DEFAULT 0,
     subjective TEXT,
@@ -264,11 +266,23 @@ CREATE TABLE IF NOT EXISTS system_settings (
 CREATE TABLE IF NOT EXISTS vademecum (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(150) NOT NULL,
+    active_ingredient VARCHAR(255) DEFAULT NULL,
+    laboratory VARCHAR(255) DEFAULT NULL,
     quantity INT UNSIGNED DEFAULT 0,
     doses VARCHAR(100) DEFAULT '',
     description TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uk_name (name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS rate_limit_attempts (
+    ip VARCHAR(45) NOT NULL,
+    action VARCHAR(50) NOT NULL DEFAULT 'login',
+    attempts INT UNSIGNED NOT NULL DEFAULT 0,
+    last_attempt DATETIME NOT NULL,
+    blocked_until DATETIME DEFAULT NULL,
+    PRIMARY KEY (ip, action),
+    INDEX idx_blocked (blocked_until)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Insertar fila inicial de config si no existe
