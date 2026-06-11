@@ -91,6 +91,7 @@ CREATE TABLE IF NOT EXISTS appointments (
     is_paid TINYINT(1) DEFAULT 0,
     payment_amount DECIMAL(10,2) DEFAULT 0.00,
     paid_amount DECIMAL(10,2) DEFAULT 0.00,
+    paid_method VARCHAR(30) DEFAULT NULL,
     payment_method VARCHAR(30) DEFAULT NULL,
     is_block TINYINT(1) DEFAULT 0,
     notes TEXT,
