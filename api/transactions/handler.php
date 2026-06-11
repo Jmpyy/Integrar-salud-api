@@ -9,7 +9,7 @@ require_once __DIR__ . '/../../core/Database.php';
 require_once __DIR__ . '/../../core/Response.php';
 require_once __DIR__ . '/../../core/Validation.php';
 
-require_auth();
+$currentUser = require_auth();
 $db = Database::connect();
 $method = $_SERVER['REQUEST_METHOD'];
 $body = json_body();
@@ -19,8 +19,7 @@ $subRoute = $pathParts[0] ?? null;
 
 // ─── GET LIST (Admin only) ───
 if ($method === 'GET' && !$subRoute) {
-    $user = require_auth();
-    if (!in_array($user['role'], ['admin', 'administracion'])) {
+    if (!in_array($currentUser['role'], ['admin', 'administracion'])) {
         json_error(403, 'Acceso restringido');
     }
     $dateFrom = sanitize_date($_GET['dateFrom'] ?? null);
@@ -184,6 +183,10 @@ if ($method === 'GET' && $subRoute === 'export') {
     $stmt = $db->query('SELECT id, transaction_date as date, type, concept, method, amount, notes FROM transactions ORDER BY transaction_date DESC');
     $rows = $stmt->fetchAll();
 
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="export_transacciones_' . date('Y-m-d_H-i') . '.csv"');
+    header('Cache-Control: max-age=0');
+    
     $headers = ['ID', 'Fecha', 'Hora', 'Tipo', 'Concepto', 'Metodo', 'Monto'];
     $output = fopen('php://output', 'w');
 

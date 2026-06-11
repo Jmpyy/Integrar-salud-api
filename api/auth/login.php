@@ -57,6 +57,9 @@ if (!$user || !password_verify($body['password'], $user['password_hash'])) {
 // Login exitoso — resetear contador
 $limiter->recordSuccess($clientIp);
 
+// Limpiar tokens expirados antiguos
+$db->exec('DELETE FROM refresh_tokens WHERE expires_at < NOW()');
+
 // ── Password Expiration Policy ──
 if (!$user['must_change_password']) {
     $stmtSettings = $db->query('SELECT config_json FROM system_settings WHERE id = 1');
@@ -125,7 +128,6 @@ setcookie('refresh_token', $refreshToken, [
 
 json_success(200, [
     'token'        => $accessToken,
-    'refreshToken' => $refreshToken,
     'user'         => $user,
 ]);
 
