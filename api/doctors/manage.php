@@ -62,7 +62,7 @@ if ($method === 'POST') {
             }
         }
 
-        $password = 'password';
+        $password = bin2hex(random_bytes(8)); // 16 caracteres aleatorios seguros
         $passwordHash = password_hash($password, PASSWORD_BCRYPT);
         $role = 'medico';
 

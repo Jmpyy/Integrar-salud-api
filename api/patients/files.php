@@ -41,6 +41,12 @@ if ($method === 'POST') {
         json_error(500, 'Error en la subida del archivo: ' . $file['error']);
     }
 
+    // Validación de tamaño (10MB máximo por archivo)
+    $maxFileSize = 10 * 1024 * 1024; // 10MB
+    if ($file['size'] > $maxFileSize) {
+        json_error(400, 'El archivo excede el tamaño máximo permitido (10MB)');
+    }
+
     // Configuración de almacenamiento y seguridad
     $uploadDir = __DIR__ . '/../../uploads/';
     if (!is_dir($uploadDir)) {

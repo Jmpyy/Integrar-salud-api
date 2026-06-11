@@ -92,8 +92,9 @@ if ($method === 'DELETE' && $id) {
     try {
         // Prevent deleting yourself (admin should not delete their own account from here)
         // This is a safety measure
+        // El require_admin() ya se ejecutó arriba, usamos el payload del JWT global
         $currentUser = require_auth();
-        if ($id === (int)$currentUser['id']) {
+        if ($id === (int)$currentUser['sub']) {
             json_error(400, 'No puedes eliminar tu propio usuario administrador desde el panel.');
         }
 

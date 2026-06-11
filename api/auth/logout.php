@@ -11,12 +11,31 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-$body = json_body();
+// Intentar obtener el userId del token — si falla, igual limpiamos cookies
+$userId = null;
+require_once __DIR__ . '/../../core/JWT.php';
+$token = get_bearer_token();
+if ($token) {
+    try {
+        JWT::init();
+        $payload = JWT::decode($token);
+        $userId = $payload['sub'] ?? null;
+    } catch (Exception $e) {
+        // Token inválido/expirado — continuar con limpieza
+    }
+}
 
-if (!empty($body['refreshToken'])) {
-    $db = Database::connect();
-    $stmt = $db->prepare('DELETE FROM refresh_tokens WHERE token = ?');
-    $stmt->execute([$body['refreshToken']]);
+$body = json_body();
+$db = Database::connect();
+
+if (!empty($body['refreshToken']) && $userId) {
+    // Solo eliminar el refresh token si pertenece al usuario autenticado
+    $stmt = $db->prepare('DELETE FROM refresh_tokens WHERE token = ? AND user_id = ?');
+    $stmt->execute([$body['refreshToken'], $userId]);
+} elseif ($userId) {
+    // Si no envía refreshToken, eliminar todos los del usuario
+    $stmt = $db->prepare('DELETE FROM refresh_tokens WHERE user_id = ?');
+    $stmt->execute([$userId]);
 }
 
 // Limpiar cookies HttpOnly del navegador

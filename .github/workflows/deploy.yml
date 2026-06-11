@@ -16,10 +16,10 @@ jobs:
         uses: actions/checkout@v4
         
       - name: Deploy via Rsync
-        uses: easingthemes/ssh-deploy@main
-        env:
+        uses: easingthemes/ssh-deploy@v6.0.3
+        with:
           SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_KEY }}
           REMOTE_HOST: ${{ secrets.VPS_HOST }}
           REMOTE_USER: ${{ secrets.VPS_USER }}
           TARGET: "/var/www/integrar-salud/backend/"
-          EXCLUDE: "/.git/, /.github/, /README.md"
+          EXCLUDE: "/.git/, /.github/, /README.md, /.env, /uploads/, /debug.log"

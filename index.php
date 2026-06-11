@@ -5,7 +5,7 @@
  */
 
 // Load environment variables first
-if (function_exists('opcache_reset')) opcache_reset();
+// opcache_reset() removido — destruía el caché en cada request
 require_once __DIR__ . '/core/Env.php';
 Env::load();
 
@@ -42,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 // ─── Security Headers (defensa en profundidad) ─────────────────────────────
 // Complementan los headers ya definidos en .htaccess
 header('X-Content-Type-Options: nosniff');               // Previene MIME sniffing
-header('X-Frame-Options: DENY');                          // Previene clickjacking
+header('X-Frame-Options: SAMEORIGIN');                     // Previene clickjacking (unificado con nginx)
 header('X-XSS-Protection: 1; mode=block');               // XSS (legacy browsers)
 header('Referrer-Policy: strict-origin-when-cross-origin'); // No filtrar URL en referer
 header('Permissions-Policy: camera=(), microphone=(), geolocation=()'); // Limitar APIs del navegador

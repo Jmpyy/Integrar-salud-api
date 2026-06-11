@@ -24,11 +24,14 @@ class JWT {
         }
 
         // En producción SI O SI debe haber una variable de entorno
-        header('Content-Type: application/json');
-        http_response_code(500);
+        // Loguear detalles internamente sin exponerlos al cliente
         $host = $_SERVER['HTTP_HOST'] ?? 'unknown';
         $dir = __DIR__;
-        echo json_encode(['error' => true, 'message' => "Seguridad: JWT_SECRET no configurada. HOST: $host, DIR: $dir"]);
+        error_log("CRITICAL: JWT_SECRET no configurada. HOST: $host, DIR: $dir");
+        
+        header('Content-Type: application/json');
+        http_response_code(500);
+        echo json_encode(['error' => true, 'message' => 'Error interno de configuración del servidor.']);
         exit;
     }
 

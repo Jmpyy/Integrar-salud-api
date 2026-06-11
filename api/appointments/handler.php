@@ -340,6 +340,10 @@ if ($method === 'PATCH' && isset($pathParts[1]) && $pathParts[1] === 'status') {
     if (empty($body['attendance'])) {
         json_error(400, 'Estado requerido');
     }
+    $allowedAttendance = ['agendado', 'confirmado', 'en_espera', 'en_curso', 'finalizado', 'ausente'];
+    if (!in_array($body['attendance'], $allowedAttendance, true)) {
+        json_error(400, 'Estado de asistencia inválido');
+    }
 
     $update = ['attendance' => $body['attendance']];
 
@@ -397,6 +401,10 @@ if ($method === 'PATCH' && isset($pathParts[1]) && $pathParts[1] === 'video_stat
     if (empty($body['estado_videollamada'])) {
         json_error(400, 'Estado de videollamada requerido');
     }
+    $allowedVideoStates = ['pendiente', 'en_espera', 'activa', 'finalizada'];
+    if (!in_array($body['estado_videollamada'], $allowedVideoStates, true)) {
+        json_error(400, 'Estado de videollamada inválido');
+    }
 
     $stmt = $db->prepare('UPDATE appointments SET estado_videollamada = ? WHERE id = ?');
     $stmt->execute([$body['estado_videollamada'], $id]);
@@ -430,6 +438,10 @@ if ($method === 'PATCH' && isset($pathParts[1]) && $pathParts[1] === 'payment') 
     $params = [];
 
     if (isset($body['paymentStatus'])) {
+        $allowedPaymentStatus = ['pendiente', 'senado', 'pagado'];
+        if (!in_array($body['paymentStatus'], $allowedPaymentStatus, true)) {
+            json_error(400, 'Estado de pago inválido');
+        }
         $fields[] = 'payment_status = ?';
         $params[] = $body['paymentStatus'];
         $fields[] = 'is_paid = ?';

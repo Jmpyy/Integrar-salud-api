@@ -126,8 +126,9 @@ if ($method === 'GET' && $subRoute === 'stats') {
     json_success(200, ['stats' => $stats]);
 }
 
-// ─── CREATE ───
+// ─── CREATE (admin, administracion o recepcionista — NO médicos) ───
 if ($method === 'POST') {
+    require_roles(['admin', 'administracion', 'recepcion', 'recepcionista']);
     // Validación flexible (amount puede llegar como int/float desde JS)
     $type    = !empty($body['type'])    ? $body['type']    : 'Ingreso';
     $concept = !empty($body['concept']) ? $body['concept'] : 'Pago desde Agenda';
