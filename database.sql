@@ -22,6 +22,21 @@ CREATE TABLE IF NOT EXISTS users (
     INDEX idx_role (role)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ─── System Logs ───
+CREATE TABLE IF NOT EXISTS system_logs (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    level ENUM('INFO', 'WARN', 'ERROR', 'CRITICAL') NOT NULL DEFAULT 'INFO',
+    action VARCHAR(100) NOT NULL,
+    user_id INT UNSIGNED DEFAULT NULL,
+    details TEXT,
+    ip_address VARCHAR(45) DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_level (level),
+    INDEX idx_action (action),
+    INDEX idx_created_at (created_at),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- ─── Doctors ───
 CREATE TABLE IF NOT EXISTS doctors (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -87,7 +102,7 @@ CREATE TABLE IF NOT EXISTS appointments (
     codigo_acceso VARCHAR(10) DEFAULT NULL,
     estado_videollamada ENUM('pendiente', 'en_espera', 'activa', 'finalizada') DEFAULT 'pendiente',
     attendance ENUM('agendado', 'confirmado', 'en_espera', 'en_curso', 'finalizado', 'ausente') DEFAULT 'agendado',
-    payment_status ENUM('pendiente', 'senado', 'pagado') DEFAULT 'pendiente',
+    payment_status ENUM('pendiente', 'señado', 'pagado') DEFAULT 'pendiente',
     is_paid TINYINT(1) DEFAULT 0,
     payment_amount DECIMAL(10,2) DEFAULT 0.00,
     paid_amount DECIMAL(10,2) DEFAULT 0.00,
@@ -285,6 +300,37 @@ CREATE TABLE IF NOT EXISTS rate_limit_attempts (
     INDEX idx_blocked (blocked_until)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ─── Call Logs ───
+CREATE TABLE IF NOT EXISTS call_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    appointment_id INT NOT NULL,
+    doctor_id INT,
+    patient_id INT,
+    started_at DATETIME NOT NULL,
+    ended_at DATETIME NULL,
+    duration_seconds INT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_appointment (appointment_id),
+    INDEX idx_doctor (doctor_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─── Reviews (Reseñas de pacientes post-consulta virtual) ───
+CREATE TABLE IF NOT EXISTS reviews (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    appointment_id INT UNSIGNED NOT NULL,
+    patient_name VARCHAR(100) NOT NULL,
+    doctor_id INT UNSIGNED DEFAULT NULL,
+    doctor_name VARCHAR(100) DEFAULT NULL,
+    rating TINYINT UNSIGNED NOT NULL CHECK (rating BETWEEN 1 AND 5),
+    comment TEXT DEFAULT NULL,
+    approved TINYINT(1) DEFAULT 0,
+    show_on_landing TINYINT(1) DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_doctor (doctor_id),
+    INDEX idx_approved (approved),
+    INDEX idx_appointment (appointment_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Insertar fila inicial de config si no existe
 INSERT IGNORE INTO afip_config (id) VALUES (1);
 INSERT IGNORE INTO system_settings (id, config_json) VALUES (1, '{}');
@@ -294,8 +340,8 @@ INSERT IGNORE INTO system_settings (id, config_json) VALUES (1, '{}');
 -- ═══════════════════════════════════════════════════════════
 
 -- ─── Usuario Admin (password: admin123) ───
-INSERT INTO users (name, email, password_hash, role) VALUES
-('Administrador', 'admin@integrarsalud.com', '$2y$10$fvFA/4bMLrvdi5cwCxGKD.yKwCFG2g.sDV1H3XUG9Rpvpi9iOJlFy', 'admin');
+INSERT INTO users (name, email, password_hash, role, must_change_password) VALUES
+('Administrador', 'admin@integrarsalud.com', '$2y$10$fvFA/4bMLrvdi5cwCxGKD.yKwCFG2g.sDV1H3XUG9Rpvpi9iOJlFy', 'admin', 1);
 
 -- ─── Vademecum Seed Data ───
 INSERT IGNORE INTO vademecum (name, quantity) VALUES 

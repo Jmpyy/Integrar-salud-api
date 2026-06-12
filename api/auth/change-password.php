@@ -15,6 +15,10 @@ if (!empty($errors)) {
     json_error(400, 'Datos incompletos', $errors);
 }
 
+if (strlen($body['new_password']) < 8 || !preg_match('/[A-Za-z]/', $body['new_password']) || !preg_match('/[0-9]/', $body['new_password'])) {
+    json_error(400, 'La nueva contraseña debe tener al menos 8 caracteres, incluir letras y números.');
+}
+
 // Check current password
 $stmt = $db->prepare('SELECT password_hash FROM users WHERE id = ?');
 $stmt->execute([$user['sub']]);

@@ -144,7 +144,8 @@ if ($method === 'POST') {
         $db->commit();
     } catch (Exception $e) {
         $db->rollBack();
-        json_error(500, 'Error al crear paciente: ' . $e->getMessage());
+        error_log('Error al crear paciente: ' . $e->getMessage());
+        json_error(500, 'Error interno al crear paciente.');
     }
     debug_log('Patient created with ID', $patientId);
 

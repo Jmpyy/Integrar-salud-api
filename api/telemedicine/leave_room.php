@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../../../config/cors.php';
+// CORS ya se maneja en index.php
 require_once __DIR__ . '/../../core/Database.php';
 require_once __DIR__ . '/../../core/Response.php';
 
@@ -10,8 +10,10 @@ try {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $body = json_body();
         $id = $body['id'] ?? null;
+        $codigo = $body['codigo'] ?? null;
     } else {
         $id = $_GET['id'] ?? null;
+        $codigo = $_GET['codigo'] ?? null;
     }
 
     if (!$id) {
@@ -19,12 +21,12 @@ try {
     }
 
     // Verificar el estado actual
-    $stmt = $db->prepare('SELECT id, estado_videollamada FROM appointments WHERE id = ?');
+    $stmt = $db->prepare('SELECT id, estado_videollamada, codigo_acceso FROM appointments WHERE id = ?');
     $stmt->execute([$id]);
     $appointment = $stmt->fetch();
 
-    if (!$appointment) {
-        json_error(404, 'Turno no encontrado.');
+    if (!$appointment || $appointment['codigo_acceso'] !== $codigo) {
+        json_error(403, 'Acceso no autorizado.');
     }
 
     // Solo podemos salir si estábamos en espera. Si ya está activa o finalizada, no tocamos nada.

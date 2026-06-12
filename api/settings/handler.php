@@ -29,7 +29,8 @@ if ($method === 'GET' && $path === 'public') {
         'linkedin' => $config['linkedin'] ?? '',
         'hours' => $config['hours'] ?? [],
         'primaryColor' => $config['primaryColor'] ?? '#f43f5e', // rose-500 por defecto
-        'logoUrl' => $config['logoUrl'] ?? '/pwa-192x192.png'
+        'logoUrl' => $config['logoUrl'] ?? '/pwa-192x192.png',
+        'googleMapsUrl' => $config['googleMapsUrl'] ?? ''
     ];
     
     json_success(200, $publicConfig);
@@ -48,6 +49,7 @@ if ($method === 'GET') {
 }
 
 if ($method === 'POST') {
+    require_admin();
     $body = json_body();
     $configJson = json_encode($body);
     

@@ -17,9 +17,11 @@ Esta es la API central de **Integrar Salud**, encargada de procesar la lógica d
 
 ---
 
-## 🛠️ Correcciones y Mejoras Recientes
-- **Compatibilidad con Entornos XAMPP/Windows:** Solución al fallo de carga crítica del `JWT_SECRET` (Error 500) modificando la abstracción de variables de entorno (`core/Env.php`) para incluir el arreglo superglobal `$_ENV` como sistema de respaldo primario, garantizando un despliegue sin fallos en servidores de desarrollo locales y VPS sin apache mod_env.
-
+## 🛠️ Novedades y Auditoría de Seguridad (Última Versión)
+- **Facturación Electrónica AFIP:** Integración nativa para emitir comprobantes directamente desde la sección financiera.
+- **Telemedicina y WebSockets:** Nuevo servidor en tiempo real (`server.js`) para coordinar las videollamadas, con reconexión automática e informes de estado (sala de espera, demora, inicio de llamada).
+- **Sistema de Reseñas Inteligente:** Motor de captación de feedback de pacientes con integración a Google Maps y "Alerta Temprana de Crisis" notificada por WebSocket a los administradores.
+- **Auditoría de Seguridad (RBAC y prevención IDOR):** Refuerzo estricto de seguridad que impide la escalada de privilegios en configuraciones y bloquea completamente el acceso indebido de un médico a la agenda de sus colegas, limitando sus acciones estrictamente a la visualización y bloqueo de su propio tiempo.
 ---
 
 ## 🛠️ Stack Tecnológico

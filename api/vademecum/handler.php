@@ -34,8 +34,14 @@ if ($method === 'GET' && isset($pathParts[0]) && $pathParts[0] === 'active_presc
 if ($method === 'GET') {
     $search = $_GET['search'] ?? '';
     if ($search) {
-        $stmt = $db->prepare('SELECT * FROM vademecum WHERE name LIKE ? OR doses LIKE ? ORDER BY name ASC');
-        $stmt->execute(["%$search%", "%$search%"]);
+        $stmt = $db->prepare('
+            SELECT * FROM vademecum 
+            WHERE name LIKE ? OR doses LIKE ? 
+            ORDER BY 
+              CASE WHEN name LIKE ? THEN 0 ELSE 1 END,
+              name ASC
+        ');
+        $stmt->execute(["%$search%", "%$search%", "$search%"]);
     } else {
         $stmt = $db->query('SELECT * FROM vademecum ORDER BY name ASC');
     }

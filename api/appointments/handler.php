@@ -11,7 +11,7 @@ require_once __DIR__ . '/../../core/Database.php';
 require_once __DIR__ . '/../../core/Response.php';
 require_once __DIR__ . '/../../core/Validation.php';
 
-require_auth();
+$currentUser = require_auth();
 $db = Database::connect();
 $method = $_SERVER['REQUEST_METHOD'];
 $body = json_body();
@@ -76,6 +76,11 @@ if ($method === 'GET' && !$id) {
     $dateTo   = sanitize_date($_GET['dateTo'] ?? null);
     $doctorId = sanitize_int($_GET['doctorId'] ?? null);
 
+    // SECURITY: IDOR Prevention for Doctors
+    if (($currentUser['role'] ?? '') === 'medico') {
+        $doctorId = (int)($currentUser['doctor_id'] ?? 0);
+    }
+
     $sql = $baseFetchSql . ' WHERE 1=1';
     $params = [];
 
@@ -139,11 +144,20 @@ if ($method === 'GET' && !$id) {
 if ($method === 'POST') {
     $patientId = isset($body['patientId']) && $body['patientId'] !== '' ? (int)$body['patientId'] : null;
     $doctorId  = isset($body['doctorId'])  && $body['doctorId']  !== '' ? (int)$body['doctorId']  : null;
+    $isBlock = !empty($body['isBlock']);
+
+    // SECURITY: RBAC for Doctors
+    if (($currentUser['role'] ?? '') === 'medico') {
+        if (!$isBlock) {
+            json_error(403, 'Acceso denegado: Los médicos solo pueden crear bloqueos de agenda, no turnos de pacientes.');
+        }
+        $doctorId = (int)($currentUser['doctor_id'] ?? 0);
+    }
     
     $modalidad = $body['modalidad'] ?? 'presencial';
     $codigoAcceso = null;
     if ($modalidad === 'virtual') {
-        $codigoAcceso = strtoupper(bin2hex(random_bytes(3))); // 6 caracteres criptográficamente seguros
+        $codigoAcceso = strtoupper(bin2hex(random_bytes(5))); // 10 caracteres criptográficamente seguros
     }
 
     $stmt = $db->prepare('INSERT INTO appointments (doctor_id, patient_id, title, appointment_date, appointment_time, duration, type, attendance, payment_status, is_paid, payment_amount, paid_amount, paid_method, payment_method, is_block, notes, wait_ticket, referrer, color_class, modalidad, codigo_acceso, estado_videollamada) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
@@ -181,6 +195,11 @@ if ($method === 'POST') {
     if ($weeks > 0) {
         $stmt = $db->prepare('INSERT INTO appointments (doctor_id, patient_id, title, appointment_date, appointment_time, duration, type, attendance, payment_status, is_block, notes, wait_ticket, referrer, color_class, payment_amount, paid_amount, paid_method, payment_method, modalidad, codigo_acceso, estado_videollamada) VALUES (?, ?, ?, DATE_ADD(?, INTERVAL ? WEEK), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
         for ($i = 1; $i <= $weeks; $i++) {
+            $codigoAccesoRecurrente = null;
+            if ($modalidad === 'virtual') {
+                $codigoAccesoRecurrente = strtoupper(bin2hex(random_bytes(5)));
+            }
+
             $stmt->execute([
                 $body['doctorId'],
                 $patientId,
@@ -202,7 +221,7 @@ if ($method === 'POST') {
                 'Efectivo', // paid_method
                 $body['paymentMethod'] ?? null,
                 $modalidad,
-                $codigoAcceso,
+                $codigoAccesoRecurrente,
                 'pendiente'
             ]);
             $created[] = (int)$db->lastInsertId();
@@ -238,17 +257,30 @@ if ($method === 'PUT') {
     $patientId = !empty($body['patientId']) ? (int)$body['patientId'] : null;
     $doctorId  = !empty($body['doctorId'])  ? (int)$body['doctorId']  : null;
 
-    $stmt = $db->prepare('SELECT id, modalidad, codigo_acceso, estado_videollamada FROM appointments WHERE id = ?');
+    $stmt = $db->prepare('SELECT id, doctor_id, is_block, modalidad, codigo_acceso, estado_videollamada FROM appointments WHERE id = ?');
     $stmt->execute([$id]);
     $existing = $stmt->fetch();
     if (!$existing) {
         json_error(404, 'Turno no encontrado');
     }
 
+    $isBlock = !empty($body['isBlock']);
+
+    // SECURITY: RBAC for Doctors
+    if (($currentUser['role'] ?? '') === 'medico') {
+        if ((int)$existing['doctor_id'] !== (int)($currentUser['doctor_id'] ?? 0)) {
+            json_error(403, 'Acceso denegado: No puedes modificar la agenda de otro profesional.');
+        }
+        if (!$existing['is_block'] || !$isBlock) {
+            json_error(403, 'Acceso denegado: Los médicos solo pueden modificar bloques de agenda, no turnos de pacientes.');
+        }
+        $doctorId = (int)$existing['doctor_id'];
+    }
+
     $modalidad = $body['modalidad'] ?? $existing['modalidad'];
     $codigoAcceso = $existing['codigo_acceso'];
     if ($modalidad === 'virtual' && !$codigoAcceso) {
-        $codigoAcceso = strtoupper(bin2hex(random_bytes(3))); // 6 caracteres criptográficamente seguros
+        $codigoAcceso = strtoupper(bin2hex(random_bytes(5))); // 10 caracteres criptográficamente seguros
     }
     $estadoVideollamada = $body['estadoVideollamada'] ?? $existing['estado_videollamada'];
 
@@ -292,12 +324,22 @@ if ($method === 'DELETE') {
         json_error(400, 'ID de turno requerido');
     }
 
-    $stmt = $db->prepare('SELECT title, doctor_id, patient_id FROM appointments WHERE id = ?');
+    $stmt = $db->prepare('SELECT title, doctor_id, patient_id, is_block FROM appointments WHERE id = ?');
     $stmt->execute([$id]);
     $app = $stmt->fetch();
 
     if (!$app) {
         json_error(404, 'Turno no encontrado');
+    }
+
+    // SECURITY: RBAC for Doctors
+    if (($currentUser['role'] ?? '') === 'medico') {
+        if ((int)$app['doctor_id'] !== (int)($currentUser['doctor_id'] ?? 0)) {
+            json_error(403, 'Acceso denegado: No puedes eliminar un turno de otro profesional.');
+        }
+        if (!$app['is_block']) {
+            json_error(403, 'Acceso denegado: Los médicos solo pueden eliminar bloques de agenda, no turnos de pacientes.');
+        }
     }
     
     // Fetch patient name if exists
@@ -390,6 +432,35 @@ if ($method === 'PATCH' && isset($pathParts[1]) && $pathParts[1] === 'video_stat
     $stmt = $db->prepare('UPDATE appointments SET estado_videollamada = ? WHERE id = ?');
     $stmt->execute([$body['estado_videollamada'], $id]);
 
+    // -- Audit Logs para Videollamadas --
+    try {
+        $db->exec("CREATE TABLE IF NOT EXISTS call_logs (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            appointment_id INT NOT NULL,
+            doctor_id INT,
+            patient_id INT,
+            started_at DATETIME NOT NULL,
+            ended_at DATETIME NULL,
+            duration_seconds INT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_appointment (appointment_id),
+            INDEX idx_doctor (doctor_id)
+        )");
+
+        if ($body['estado_videollamada'] === 'activa') {
+            $stmtLog = $db->prepare("INSERT INTO call_logs (appointment_id, doctor_id, patient_id, started_at) 
+                SELECT ?, doctor_id, patient_id, NOW() FROM appointments WHERE id = ?
+                AND NOT EXISTS (SELECT 1 FROM call_logs WHERE appointment_id = ? AND ended_at IS NULL)");
+            $stmtLog->execute([$id, $id, $id]);
+        } elseif ($body['estado_videollamada'] === 'finalizada') {
+            $stmtLog = $db->prepare("UPDATE call_logs SET ended_at = NOW(), duration_seconds = TIMESTAMPDIFF(SECOND, started_at, NOW()) WHERE appointment_id = ? AND ended_at IS NULL");
+            $stmtLog->execute([$id]);
+        }
+    } catch (Exception $e) {
+        // Ignoramos errores de log para no romper el flujo principal
+        error_log("Error guardando call_log: " . $e->getMessage());
+    }
+
     $stmt = $db->prepare($baseFetchSql . ' WHERE a.id = ?');
     $stmt->execute([$id]);
     $row = $stmt->fetch();
@@ -399,6 +470,11 @@ if ($method === 'PATCH' && isset($pathParts[1]) && $pathParts[1] === 'video_stat
 
 // ─── PATCH payment ───
 if ($method === 'PATCH' && isset($pathParts[1]) && $pathParts[1] === 'payment') {
+    // SECURITY: RBAC for Doctors
+    if (($currentUser['role'] ?? '') === 'medico') {
+        json_error(403, 'Acceso denegado: Los médicos no pueden realizar cobros ni modificar el estado de pago.');
+    }
+
     if (!$id) {
         json_error(400, 'ID de turno requerido');
     }
@@ -413,7 +489,7 @@ if ($method === 'PATCH' && isset($pathParts[1]) && $pathParts[1] === 'payment') 
     $params = [];
 
     if (isset($body['paymentStatus'])) {
-        $allowedPaymentStatus = ['pendiente', 'senado', 'pagado'];
+        $allowedPaymentStatus = ['pendiente', 'señado', 'pagado'];
         if (!in_array($body['paymentStatus'], $allowedPaymentStatus, true)) {
             json_error(400, 'Estado de pago inválido');
         }

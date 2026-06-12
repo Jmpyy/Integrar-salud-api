@@ -43,6 +43,10 @@ if ($method === 'POST') {
         json_error(400, 'Datos incompletos', $errors);
     }
 
+    if (strlen($body['password']) < 8 || !preg_match('/[A-Za-z]/', $body['password']) || !preg_match('/[0-9]/', $body['password'])) {
+        json_error(400, 'La contraseña debe tener al menos 8 caracteres, incluir letras y números.');
+    }
+
     try {
         $passwordHash = password_hash($body['password'], PASSWORD_BCRYPT);
         $stmt = $db->prepare('INSERT INTO users (name, email, password_hash, role, must_change_password) VALUES (?, ?, ?, ?, ?)');
@@ -68,6 +72,9 @@ if ($method === 'POST') {
 if ($method === 'PUT' && $id) {
     try {
         if (isset($body['password'])) {
+            if (strlen($body['password']) < 8 || !preg_match('/[A-Za-z]/', $body['password']) || !preg_match('/[0-9]/', $body['password'])) {
+                json_error(400, 'La contraseña debe tener al menos 8 caracteres, incluir letras y números.');
+            }
             $passwordHash = password_hash($body['password'], PASSWORD_BCRYPT);
             $stmt = $db->prepare('UPDATE users SET password_hash = ?, must_change_password = 1 WHERE id = ?');
             $stmt->execute([$passwordHash, $id]);

@@ -15,6 +15,7 @@ require_once __DIR__ . '/../../core/Database.php';
 require_once __DIR__ . '/../../core/JWT.php';
 require_once __DIR__ . '/../../core/Response.php';
 require_once __DIR__ . '/../../core/RateLimiter.php';
+require_once __DIR__ . '/../../core/Logger.php';
 
 $body = json_body();
 $errors = validate_required($body, ['email', 'password']);
@@ -51,11 +52,13 @@ $user = $stmt->fetch();
 if (!$user || !password_verify($body['password'], $user['password_hash'])) {
     // Registrar intento fallido
     $limiter->recordFailure($clientIp);
+    Logger::warn($db, 'LOGIN_FAILED', $user ? $user['id'] : null, ['email' => $body['email']]);
     json_error(401, 'Credenciales no válidas');
 }
 
 // Login exitoso — resetear contador
 $limiter->recordSuccess($clientIp);
+Logger::info($db, 'LOGIN_SUCCESS', $user['id'], ['email' => $user['email'], 'role' => $user['role']]);
 
 // Limpiar tokens expirados antiguos
 $db->exec('DELETE FROM refresh_tokens WHERE expires_at < NOW()');

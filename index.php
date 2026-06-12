@@ -140,6 +140,13 @@ $routes = [
         'check_status'       => 'api/telemedicine/check_status.php',
         'set_delay'          => 'api/telemedicine/set_delay.php',
         'setup_delay_column' => 'api/telemedicine/setup_delay_column.php',
+        'leave_room'         => 'api/telemedicine/leave_room.php',
+    ],
+    'logs' => [
+        'default' => 'api/logs/handler.php',
+    ],
+    'reviews' => [
+        'default' => 'api/reviews/handler.php',
     ],
 ];
 
@@ -210,6 +217,10 @@ switch ($resource) {
         $file = $routes['vademecum']['default'];
         break;
 
+    case 'logs':
+        $file = $routes['logs']['default'];
+        break;
+
     case 'push':
         $action = $segments[1] ?? null;
         if ($action === 'subscribe') {
@@ -231,9 +242,17 @@ switch ($resource) {
             $file = $routes['telemedicine']['set_delay'];
         } elseif ($action === 'setup_delay_column' || $action === 'setup_delay_column.php') {
             $file = $routes['telemedicine']['setup_delay_column'];
+        } elseif ($action === 'leave_room' || $action === 'leave_room.php') {
+            $file = $routes['telemedicine']['leave_room'];
         } else {
             json_error(404, 'Endpoint telemedicine no encontrado');
         }
+        break;
+
+    case 'reviews':
+        $file = $routes['reviews']['default'];
+        // Pasar el ID como PATH_INFO para que el handler lo capture con PATH_INFO
+        $_SERVER['PATH_INFO'] = isset($segments[1]) ? '/' . implode('/', array_slice($segments, 1)) : '';
         break;
 
     default:

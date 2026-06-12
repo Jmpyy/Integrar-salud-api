@@ -13,8 +13,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $body = json_body();
-$dni = $body['dni'] ?? '';
-$codigo = $body['codigo'] ?? '';
+$dni = isset($body['dni']) ? trim($body['dni']) : '';
+$codigo = isset($body['codigo']) ? trim($body['codigo']) : '';
 
 if (!$dni || !$codigo) {
     json_error(400, 'DNI y Código de Acceso son requeridos');
@@ -22,7 +22,13 @@ if (!$dni || !$codigo) {
 
 $db = Database::connect();
 
-
+require_once __DIR__ . '/../../core/RateLimiter.php';
+$limiter = new RateLimiter($db);
+$clientIp = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+if ($limiter->isBlocked($clientIp, 'telemedicine_verify')) {
+    $secsLeft = $limiter->getSecondsRemaining($clientIp, 'telemedicine_verify');
+    json_error(429, "Demasiados intentos. Intenta de nuevo en " . ceil($secsLeft / 60) . " minuto(s).");
+}
 
 // 1. Primero buscar el turno por DNI + Código sin restricción de fecha
 $stmt = $db->prepare('
@@ -40,6 +46,7 @@ $stmt->execute([$dni, $codigo]);
 $appointment = $stmt->fetch();
 
 if (!$appointment) {
+    $limiter->recordFailure($clientIp, 'telemedicine_verify');
     json_error(404, 'Credenciales incorrectas. Verificá tu DNI y el Código de Acceso.');
 }
 
@@ -79,6 +86,9 @@ if (!$isCallActive && ($appointmentDate < $today || $minutesDifference > 5)) {
         $mensaje = 'Tu turno está programado para el ' . $fechaFormateada . ' a las ' . $horaFormateada . 'h. Podés ingresar 5 minutos antes.';
     }
 
+    // Limpiar intentos fallidos porque las credenciales son correctas (aunque sea temprano)
+    $limiter->recordSuccess($clientIp, 'telemedicine_verify');
+
     // HTTP 202 = turno encontrado pero acceso no habilitado aún
     http_response_code(202);
     header('Content-Type: application/json');
@@ -105,9 +115,24 @@ if ($appointment['estado_videollamada'] === 'pendiente') {
     $updateStmt->execute([$waitTicket, $appointment['id']]);
 }
 
+// Generar un token temporal para que el paciente pueda conectarse a los WebSockets de forma segura
+require_once __DIR__ . '/../../core/JWT.php';
+JWT::init();
+$patientToken = JWT::encode([
+    'sub'           => 'patient_' . $appointment['id'],
+    'role'          => 'patient',
+    'appointmentId' => $appointment['id'],
+    'patientName'   => $appointment['patient_name'],
+    'doctorName'    => $appointment['doctor_name']
+]);
+
+// Limpiar intentos fallidos tras ingreso exitoso
+$limiter->recordSuccess($clientIp, 'telemedicine_verify');
+
 json_success(200, [
     'appointmentId' => $appointment['id'],
     'doctorName'    => $appointment['doctor_name'],
     'patientName'   => $appointment['patient_name'],
-    'status'        => $appointment['estado_videollamada'] === 'pendiente' ? 'en_espera' : $appointment['estado_videollamada']
+    'status'        => $appointment['estado_videollamada'] === 'pendiente' ? 'en_espera' : $appointment['estado_videollamada'],
+    'token'         => $patientToken
 ]);
