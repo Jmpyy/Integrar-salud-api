@@ -36,7 +36,7 @@ if (!$dailyApiKey) {
     json_error(500, 'Daily.co API Key no configurada en el servidor');
 }
 
-$roomName = 'integrarsalud-' . $appointmentId . '-' . substr($codigo, 0, 5);
+$roomName = strtolower('integrarsalud-' . $appointmentId . '-' . substr($codigo, 0, 5));
 
 // URL de la API de Daily
 $url = 'https://api.daily.co/v1/rooms';
@@ -53,7 +53,9 @@ curl_close($ch);
 
 if ($httpCode === 200) {
     $data = json_decode($response, true);
-    json_success(200, ['url' => $data['url']]);
+    if (isset($data['url'])) {
+        json_success(200, ['url' => $data['url']]);
+    }
 }
 
 // Intento 2: Crear la sala si no existe
@@ -79,7 +81,12 @@ curl_close($ch);
 
 if ($httpCode === 200) {
     $data = json_decode($response, true);
-    json_success(200, ['url' => $data['url']]);
+    if (isset($data['url'])) {
+        json_success(200, ['url' => $data['url']]);
+    } else {
+        json_error(500, 'Daily.co no devolvió la URL de la sala', ['response' => $data]);
+    }
 } else {
-    json_error(500, 'Error al crear la sala en Daily.co', json_decode($response, true));
+    $errorData = $response ? json_decode($response, true) : ['curl_error' => curl_error($ch)];
+    json_error(500, 'Error al crear la sala en Daily.co', ['http_code' => $httpCode, 'details' => $errorData]);
 }
