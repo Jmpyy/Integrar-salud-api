@@ -68,7 +68,8 @@ curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
     'properties' => [
         'enable_chat' => true,
         'enable_screenshare' => true,
-        'lang' => 'es'
+        'lang' => 'es',
+        'exp' => time() + (50 * 60) // Expira automáticamente en 50 minutos
     ]
 ]));
 curl_setopt($ch, CURLOPT_HTTPHEADER, [
