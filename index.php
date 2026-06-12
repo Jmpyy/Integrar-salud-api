@@ -141,6 +141,7 @@ $routes = [
         'set_delay'          => 'api/telemedicine/set_delay.php',
         'setup_delay_column' => 'api/telemedicine/setup_delay_column.php',
         'leave_room'         => 'api/telemedicine/leave_room.php',
+        'get_room'           => 'api/telemedicine/get_room.php',
     ],
     'logs' => [
         'default' => 'api/logs/handler.php',
@@ -244,6 +245,8 @@ switch ($resource) {
             $file = $routes['telemedicine']['setup_delay_column'];
         } elseif ($action === 'leave_room' || $action === 'leave_room.php') {
             $file = $routes['telemedicine']['leave_room'];
+        } elseif ($action === 'get_room' || $action === 'get_room.php') {
+            $file = $routes['telemedicine']['get_room'];
         } else {
             json_error(404, 'Endpoint telemedicine no encontrado');
         }
