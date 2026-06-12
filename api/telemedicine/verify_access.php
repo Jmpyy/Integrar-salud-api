@@ -55,9 +55,7 @@ if ($appointment['payment_status'] !== 'pagado') {
 }
 
 // 2. Verificar si ya finalizó
-if ($appointment['estado_videollamada'] === 'finalizada') {
-    json_error(400, 'Esta consulta virtual ya ha finalizado.');
-}
+// Si está finalizada, lo dejamos pasar igual para que el frontend lo mande directo a la pantalla de reseña (goodbye)
 
 // 3. Verificar límite de tiempo de ingreso (15 minutos antes)
 $today = date('Y-m-d');
