@@ -22,7 +22,7 @@ $id = $path[0] ?? null;
 if ($id && is_numeric($id)) {
     // Single doctor with schedule
     $stmt = $db->prepare('
-        SELECT d.*, u.id as user_id 
+        SELECT d.*, u.id as user_id, u.profile_picture
         FROM doctors d
         LEFT JOIN users u ON u.doctor_id = d.id
         WHERE d.id = ?');
@@ -53,7 +53,7 @@ if ($id && is_numeric($id)) {
 
 // All doctors
 $stmt = $db->query('
-    SELECT d.*, u.id as user_id 
+    SELECT d.*, u.id as user_id, u.profile_picture
     FROM doctors d
     LEFT JOIN users u ON u.doctor_id = d.id
     ORDER BY d.name');

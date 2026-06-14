@@ -11,7 +11,9 @@ require_once __DIR__ . '/../../core/Database.php';
 require_once __DIR__ . '/../../core/Response.php';
 require_once __DIR__ . '/../../core/Validation.php';
 
-$currentUser = require_auth();
+// Restringir el acceso a la agenda completa.
+// NOTA: 'paciente' tiene su propio endpoint (verify_access), este es para el staff interno.
+$currentUser = require_roles(['admin', 'administracion', 'recepcion', 'recepcionista', 'medico', 'profesional']);
 $db = Database::connect();
 $method = $_SERVER['REQUEST_METHOD'];
 $body = json_body();
@@ -61,10 +63,17 @@ function normalize_appointment(array $row): array {
         'codigoAcceso'   => $row['codigo_acceso'] ?? null,
         'estadoVideollamada' => $row['estado_videollamada'] ?? 'pendiente',
         'meetLink'       => $row['doctor_meet_link'] ?? null,
+        'hasEvolution'   => !empty($row['has_evolution']),
     ];
 }
 
-$baseFetchSql = 'SELECT a.*, p.name as patient_name, p.phone as patient_phone, p.coverage as patient_coverage, p.coverage_number as patient_coverage_number, p.dni as patient_dni, p.birth_date as patient_birth_date, p.gender as patient_gender, p.email as patient_email, p.address as patient_address, p.emergency_contact as patient_emergency_contact, p.plan as patient_plan, d.meet_link as doctor_meet_link
+$baseFetchSql = 'SELECT a.*, p.name as patient_name, p.phone as patient_phone, p.coverage as patient_coverage, p.coverage_number as patient_coverage_number, p.dni as patient_dni, p.birth_date as patient_birth_date, p.gender as patient_gender, p.email as patient_email, p.address as patient_address, p.emergency_contact as patient_emergency_contact, p.plan as patient_plan, d.meet_link as doctor_meet_link,
+                 EXISTS(
+                     SELECT 1 FROM soap_history sh 
+                     WHERE sh.patient_id = a.patient_id 
+                       AND sh.doctor_id = a.doctor_id 
+                       AND DATE(sh.date) = a.appointment_date
+                 ) as has_evolution
                  FROM appointments a
                  LEFT JOIN patients p ON a.patient_id = p.id
                  LEFT JOIN doctors d ON a.doctor_id = d.id';
@@ -134,6 +143,7 @@ if ($method === 'GET' && !$id) {
             'codigoAcceso'   => $row['codigo_acceso'] ?? null,
             'estadoVideollamada' => $row['estado_videollamada'] ?? 'pendiente',
             'meetLink'       => $row['doctor_meet_link'] ?? null,
+            'hasEvolution'   => !empty($row['has_evolution']),
         ];
     }, $rows);
 

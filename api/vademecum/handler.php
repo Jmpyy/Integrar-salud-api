@@ -8,7 +8,7 @@
 require_once __DIR__ . '/../../core/Database.php';
 require_once __DIR__ . '/../../core/Response.php';
 
-require_auth();
+require_roles(['admin', 'medico', 'recepcion', 'recepcionista', 'profesional']);
 $db = Database::connect();
 $method = $_SERVER['REQUEST_METHOD'];
 $body = json_body();
@@ -51,6 +51,7 @@ if ($method === 'GET') {
 
 // ─── CREATE ───
 if ($method === 'POST') {
+    require_roles(['admin', 'medico']);
     $errors = validate_required($body, ['name']);
     if (!empty($errors)) {
         json_error(400, 'Nombre de medicamento requerido', $errors);
@@ -72,6 +73,7 @@ if ($method === 'POST') {
 
 // ─── UPDATE ───
 if ($method === 'PUT') {
+    require_roles(['admin', 'medico']);
     if (!$medId) json_error(400, 'ID requerido');
     
     $stmt = $db->prepare('UPDATE vademecum SET name = ?, doses = ?, description = ? WHERE id = ?');
@@ -87,6 +89,7 @@ if ($method === 'PUT') {
 
 // ─── DELETE ───
 if ($method === 'DELETE') {
+    require_roles(['admin', 'medico']);
     if (!$medId) json_error(400, 'ID requerido');
     $stmt = $db->prepare('DELETE FROM vademecum WHERE id = ?');
     $stmt->execute([$medId]);

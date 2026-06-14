@@ -1,7 +1,7 @@
-# ⚙️ Integrar Salud | API REST Core v2.0
-> **Backend v2.0** - El motor lógico y de datos para la gestión clínica moderna.
+# ⚙️ Integrar Salud | API REST Core v3.0
+> **Backend v3.0** - El motor lógico de grado militar para la gestión clínica moderna.
 
-Esta es la API central de **Integrar Salud**, encargada de procesar la lógica de negocio, la seguridad y la persistencia de datos en MySQL. En su versión 2.0, la API ha sido extendida para soportar todos los módulos necesarios de un centro de salud completo, manteniendo una arquitectura ligera, rápida y fácil de desplegar en cualquier servidor con soporte PHP.
+Esta es la API central de **Integrar Salud**, encargada de procesar la lógica de negocio, la extrema seguridad y la persistencia de datos en MySQL. En su versión 3.0, la API ha sido reescrita y auditada para mitigar vulnerabilidades y soportar operaciones clínicas críticas mediante una arquitectura sólida (Zero-Trust) orientada a cookies HttpOnly y control de roles férreo.
 
 ---
 
@@ -17,11 +17,13 @@ Esta es la API central de **Integrar Salud**, encargada de procesar la lógica d
 
 ---
 
-## 🛠️ Novedades y Auditoría de Seguridad (Última Versión)
-- **Facturación Electrónica AFIP:** Integración nativa para emitir comprobantes directamente desde la sección financiera.
-- **Telemedicina y WebSockets:** Nuevo servidor en tiempo real (`server.js`) para coordinar las videollamadas, con reconexión automática e informes de estado (sala de espera, demora, inicio de llamada).
-- **Sistema de Reseñas Inteligente:** Motor de captación de feedback de pacientes con integración a Google Maps y "Alerta Temprana de Crisis" notificada por WebSocket a los administradores.
-- **Auditoría de Seguridad (RBAC y prevención IDOR):** Refuerzo estricto de seguridad que impide la escalada de privilegios en configuraciones y bloquea completamente el acceso indebido de un médico a la agenda de sus colegas, limitando sus acciones estrictamente a la visualización y bloqueo de su propio tiempo.
+## 🛠️ Novedades de Arquitectura y Auditoría de Seguridad (Versión 3.0)
+- **Zero-Trust & HttpOnly Cookies:** Migración completa de almacenamiento de tokens (antes en localStorage) a Cookies Seguras y HttpOnly, eliminando vulnerabilidades de robo de sesión por XSS en todo el sistema.
+- **Gestión Inteligente de Inactividad:** Sistema global de Auto-Cierre de Sesión que lee desde base de datos (`sessionTimeout`) y ajusta la vigencia de las cookies de autenticación, permitiendo sesiones persistentes controladas para profesionales confiables.
+- **Auditoría de Roles Avanzada (RBAC & anti-IDOR):** Refuerzo estricto de seguridad que impide la escalada de privilegios y bloquea completamente a los médicos para acceder a la agenda o datos financieros de colegas, limitando sus acciones estrictamente a la visualización de su propio tiempo y sus pacientes asignados.
+- **WebSockets Protegidos (server.js):** El servidor Node.js ahora es capaz de interpretar de forma asíncrona las nuevas cookies HttpOnly y decodificar el `auth_token`, impidiendo la conexión de clientes no autorizados a las salas virtuales y de alertas.
+- **Facturación Electrónica AFIP:** Integración nativa y blindada para emitir comprobantes directamente, alojando y utilizando las claves (`.key`, `.crt`) en el directorio restringido del backend sin exponer información al frontend.
+- **Sistema de Reseñas Inteligente:** Motor de captación de feedback con Alertas de Crisis que cruza información y alerta al administrador vía WebSocket y push en tiempo real.
 ---
 
 ## 🛠️ Stack Tecnológico

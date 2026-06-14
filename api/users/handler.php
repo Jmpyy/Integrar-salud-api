@@ -20,7 +20,7 @@ $id = isset($path[0]) && is_numeric($path[0]) ? (int)$path[0] : null;
 if ($method === 'GET' && !$id) {
     try {
         $query = "
-            SELECT u.id, u.name, u.email, u.role, u.must_change_password, u.doctor_id, u.staff_id, u.created_at,
+            SELECT u.id, u.name, u.email, u.role, u.must_change_password, u.doctor_id, u.staff_id, u.created_at, u.profile_picture,
                    d.name as doctor_name, s.name as staff_name
             FROM users u
             LEFT JOIN doctors d ON u.doctor_id = d.id

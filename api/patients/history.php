@@ -6,7 +6,7 @@
 require_once __DIR__ . '/../../core/Database.php';
 require_once __DIR__ . '/../../core/Response.php';
 
-require_auth();
+require_roles(['admin', 'medico', 'recepcion', 'recepcionista', 'profesional']);
 $db = Database::connect();
 $method = $_SERVER['REQUEST_METHOD'];
 $body = json_body();

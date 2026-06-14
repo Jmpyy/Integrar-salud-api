@@ -45,7 +45,7 @@ if ($limiter->isBlocked($clientIp)) {
 }
 // ──────────────────────────────────────────────────────────
 
-$stmt = $db->prepare('SELECT id, name, email, password_hash, role, must_change_password, doctor_id, staff_id, password_changed_at FROM users WHERE email = ?');
+$stmt = $db->prepare('SELECT id, name, profile_picture, email, password_hash, role, must_change_password, doctor_id, staff_id, password_changed_at FROM users WHERE email = ?');
 $stmt->execute([$body['email']]);
 $user = $stmt->fetch();
 
@@ -88,6 +88,7 @@ JWT::init();
 $accessToken = JWT::encode([
     'sub'  => $user['id'],
     'name' => $user['name'],
+    'profile_picture' => $user['profile_picture'],
     'email' => $user['email'],
     'role' => $user['role'],
     'doctor_id' => $user['doctor_id'] ? (int)$user['doctor_id'] : null,
@@ -108,9 +109,26 @@ $stmt->execute([$user['id'], $refreshToken]);
 unset($user['password_hash']);
 $user['must_change_password'] = (bool)$user['must_change_password'];
 
+$stmtConfig = $db->query('SELECT config_json FROM system_settings WHERE id = 1');
+$rowConfig = $stmtConfig->fetch();
+$sysConfig = $rowConfig ? json_decode($rowConfig['config_json'], true) : [];
+$sessionTimeout = isset($sysConfig['sessionTimeout']) ? (int)$sysConfig['sessionTimeout'] : 60;
+
 $rememberMe = isset($body['rememberMe']) ? (bool)$body['rememberMe'] : false;
-$authExpiry = $rememberMe ? (time() + 3600) : 0;
-$refreshExpiry = $rememberMe ? (time() + 604800) : 0;
+
+// Si sessionTimeout es 0 (Mantener siempre activa) o si marcó "Recordarme", la sesión persiste
+// Si sessionTimeout > 0, usamos ese tiempo en minutos, pero si es un número muy grande o "Recordarme", le damos más tiempo.
+// Nota: Si es 0, no expirará al cerrar el navegador, le daremos 7 días.
+if ($sessionTimeout === 0 || $rememberMe) {
+    $authExpiry = time() + (7 * 24 * 3600); // 7 days
+    $refreshExpiry = time() + (30 * 24 * 3600); // 30 days
+} else {
+    // Es una sesión que se destruirá al cerrar el navegador (session cookie),
+    // Opcionalmente podemos ponerle el timeout estricto, pero el frontend ya controla la inactividad.
+    // Usaremos expiration = 0 (session cookie)
+    $authExpiry = 0;
+    $refreshExpiry = 0;
+}
 
 // Emitir cookies HttpOnly (no accesibles por JavaScript — protección XSS)
 $isSecure = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';

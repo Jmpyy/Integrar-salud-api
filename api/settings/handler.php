@@ -37,7 +37,7 @@ if ($method === 'GET' && $path === 'public') {
     exit;
 }
 
-// Para todas las demás rutas (GET completo, POST), se requiere autenticación y rol de admin
+// Para todas las demás rutas se requiere autenticación básica (para lectura)
 require_auth();
 
 if ($method === 'GET') {

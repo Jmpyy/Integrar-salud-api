@@ -9,6 +9,7 @@ USE integrar_salud;
 CREATE TABLE IF NOT EXISTS users (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
+    profile_picture VARCHAR(255) DEFAULT NULL,
     email VARCHAR(150) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
     role ENUM('medico', 'recepcion', 'admin') NOT NULL DEFAULT 'recepcion',

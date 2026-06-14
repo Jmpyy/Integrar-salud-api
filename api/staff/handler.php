@@ -8,7 +8,7 @@
 require_once __DIR__ . '/../../core/Database.php';
 require_once __DIR__ . '/../../core/Response.php';
 
-require_auth();
+require_roles(['admin', 'administracion', 'recepcion', 'recepcionista', 'medico', 'profesional']);
 $db = Database::connect();
 $method = $_SERVER['REQUEST_METHOD'];
 $body = json_body();
@@ -19,7 +19,7 @@ $id = isset($pathParts[0]) && is_numeric($pathParts[0]) ? (int)$pathParts[0] : n
 // ─── GET ALL ───
 if ($method === 'GET' && !$id) {
     $stmt = $db->query('
-        SELECT s.*, u.id as user_id 
+        SELECT s.*, u.id as user_id, u.profile_picture
         FROM admin_staff s
         LEFT JOIN users u ON u.staff_id = s.id
         ORDER BY s.name');

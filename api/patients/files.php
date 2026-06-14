@@ -7,7 +7,7 @@
 require_once __DIR__ . '/../../core/Database.php';
 require_once __DIR__ . '/../../core/Response.php';
 
-require_auth();
+require_roles(['admin', 'medico', 'recepcion', 'recepcionista', 'profesional']);
 $db = Database::connect();
 $method = $_SERVER['REQUEST_METHOD'];
 
@@ -20,8 +20,38 @@ if (!$patientId) {
     json_error(400, 'ID de paciente requerido');
 }
 
-// ─── GET: LIST FILES ───
+// ─── GET: LIST FILES OR DOWNLOAD ───
 if ($method === 'GET') {
+    $action = $pathParts[3] ?? null;
+
+    if ($fileId && $action === 'download') {
+        $stmt = $db->prepare('SELECT file_name, file_path, file_type FROM patient_files WHERE id = ? AND patient_id = ?');
+        $stmt->execute([$fileId, $patientId]);
+        $fileRecord = $stmt->fetch();
+
+        if (!$fileRecord) {
+            json_error(404, 'Archivo no encontrado');
+        }
+
+        $filePath = __DIR__ . '/../../uploads/' . $fileRecord['file_path'];
+        if (!file_exists($filePath)) {
+            json_error(404, 'El archivo físico no existe en el servidor');
+        }
+
+        header('Content-Description: File Transfer');
+        header('Content-Type: ' . $fileRecord['file_type']);
+        header('Content-Disposition: inline; filename="' . basename($fileRecord['file_name']) . '"');
+        header('Expires: 0');
+        header('Cache-Control: must-revalidate');
+        header('Pragma: public');
+        header('Content-Length: ' . filesize($filePath));
+        
+        // Output file contents
+        readfile($filePath);
+        exit;
+    }
+
+    // List files
     $stmt = $db->prepare('SELECT id, file_name as name, file_type as type, file_size as size, uploaded_at as date 
                           FROM patient_files WHERE patient_id = ? ORDER BY uploaded_at DESC');
     $stmt->execute([$patientId]);
@@ -111,6 +141,7 @@ if ($method === 'POST') {
 
 // ─── DELETE: REMOVE FILE ───
 if ($method === 'DELETE') {
+    require_roles(['admin', 'medico']);
     if (!$fileId) {
         json_error(400, 'ID de archivo requerido');
     }

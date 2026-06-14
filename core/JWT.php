@@ -27,7 +27,12 @@ class JWT {
         // Loguear detalles internamente sin exponerlos al cliente
         $host = $_SERVER['HTTP_HOST'] ?? 'unknown';
         $dir = __DIR__;
-        error_log("CRITICAL: JWT_SECRET no configurada. HOST: $host, DIR: $dir");
+        $envFileExists = file_exists(__DIR__ . '/../.env') ? 'yes' : 'no';
+        $getenv = getenv('JWT_SECRET');
+        $_env = isset($_ENV['JWT_SECRET']) ? $_ENV['JWT_SECRET'] : 'not set';
+        $_server = isset($_SERVER['JWT_SECRET']) ? $_SERVER['JWT_SECRET'] : 'not set';
+        
+        error_log("CRITICAL: JWT_SECRET no configurada. HOST: $host, DIR: $dir, envFileExists: $envFileExists, getenv: $getenv, _ENV: $_env, _SERVER: $_server");
         
         header('Content-Type: application/json');
         http_response_code(500);

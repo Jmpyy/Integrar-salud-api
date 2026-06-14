@@ -81,6 +81,7 @@ if ($method === 'GET' && !$subRoute) {
 
 // ─── STATS ───
 if ($method === 'GET' && $subRoute === 'stats') {
+    require_roles(['admin', 'administracion']);
     $dateFrom = sanitize_date($_GET['dateFrom'] ?? date('Y-m-01')) ?? date('Y-m-01');
     $dateTo   = sanitize_date($_GET['dateTo'] ?? date('Y-m-d')) ?? date('Y-m-d');
 

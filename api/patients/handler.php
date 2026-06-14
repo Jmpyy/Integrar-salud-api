@@ -10,7 +10,8 @@ require_once __DIR__ . '/../../core/Database.php';
 require_once __DIR__ . '/../../core/Response.php';
 require_once __DIR__ . '/../../core/Validation.php';
 
-require_auth();
+// Permitimos acceso al personal interno, no a los pacientes
+require_roles(['admin', 'administracion', 'recepcion', 'recepcionista', 'medico', 'profesional']);
 $db = Database::connect();
 $method = $_SERVER['REQUEST_METHOD'];
 $body = json_body();
