@@ -134,6 +134,7 @@ $routes = [
     'push' => [
         'subscribe'  => 'api/push/subscribe.php',
         'public_key' => 'api/push/public_key.php',
+        'test'       => 'api/push/test.php',
     ],
     'telemedicine' => [
         'verify_access'      => 'api/telemedicine/verify_access.php',
@@ -228,6 +229,8 @@ switch ($resource) {
             $file = $routes['push']['subscribe'];
         } elseif ($action === 'public_key') {
             $file = $routes['push']['public_key'];
+        } elseif ($action === 'test') {
+            $file = $routes['push']['test'];
         } else {
             json_error(404, 'Endpoint push no encontrado');
         }
