@@ -31,11 +31,16 @@ try {
     // Comprobar si ya existe la suscripción para evitar duplicados exactos
     $checkStmt = $db->prepare("SELECT id FROM push_subscriptions WHERE endpoint = ?");
     $checkStmt->execute([$endpoint]);
-    
+
     if (!$checkStmt->fetch()) {
         $stmt = $db->prepare("INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth) VALUES (?, ?, ?, ?)");
         $stmt->execute([$user['sub'], $endpoint, $p256dh, $auth]);
     }
+
+    // Send a welcome test notification
+    require_once __DIR__ . '/../../libs/PushNotificationService.php';
+    $pushService = new PushNotificationService($db);
+    $pushService->notifyUser($user['sub'], '¡Conectado!', 'Las notificaciones de escritorio están activadas correctamente.', '/dashboard');
 
     echo json_encode(['success' => true]);
 } catch (Throwable $e) {
