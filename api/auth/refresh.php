@@ -43,7 +43,7 @@ if (!$tokenRecord) {
 }
 
 // Get user data
-$stmt = $db->prepare('SELECT id, name, email, role FROM users WHERE id = ?');
+$stmt = $db->prepare('SELECT id, name, profile_picture, email, role, doctor_id, staff_id, must_change_password FROM users WHERE id = ?');
 $stmt->execute([$tokenRecord['user_id']]);
 $user = $stmt->fetch();
 
@@ -55,8 +55,12 @@ if (!$user) {
 $newAccessToken = JWT::encode([
     'sub'   => $user['id'],
     'name'  => $user['name'],
+    'profile_picture' => $user['profile_picture'],
     'email' => $user['email'],
     'role'  => $user['role'],
+    'doctor_id' => $user['doctor_id'] ? (int)$user['doctor_id'] : null,
+    'staff_id'  => $user['staff_id'] ? (int)$user['staff_id'] : null,
+    'must_change_password' => (bool)$user['must_change_password']
 ]);
 
 // Optionally rotate refresh token
@@ -75,16 +79,19 @@ $sysConfig = $rowConfig ? json_decode($rowConfig['config_json'], true) : [];
 $sessionTimeout = isset($sysConfig['sessionTimeout']) ? (int)$sysConfig['sessionTimeout'] : 60;
 
 // Aquí no sabemos el estado original de "rememberMe" del frontend,
-// pero podemos basarnos en si la cookie original era de sesión o persistente.
-// Para ser robustos, si sessionTimeout === 0 (Mantener siempre activa), hacemos la cookie persistente.
-// O si se pasó un flag específico, pero como no lo sabemos, si no hay timeout = 0, renovamos la cookie de sesión.
-if ($sessionTimeout === 0) {
+// pero podemos inferirlo de si el refresh_token expiraba a los 30 días o a los 7 días.
+// Por simplicidad, siempre renovamos la cookie como persistente si el refresh_token original era persistente
+// En el backend, el refresh token se expira en DATE_ADD(NOW(), INTERVAL 30 DAY)
+if ($sessionTimeout === 0 || strtotime($tokenRecord['expires_at']) > time() + (8 * 24 * 3600)) {
+    // Si la expiración original del refresh era mayor a 7-8 días (ej. 30 días), significa que era "Remember Me"
     $authExpiry = time() + (7 * 24 * 3600); // 7 days
     $refreshExpiry = time() + (30 * 24 * 3600); // 30 days
 } else {
-    // Session cookie
-    $authExpiry = 0;
-    $refreshExpiry = 0;
+    // Si no, también le damos la expiración original de 7 días, porque los móviles cierran las apps todo el tiempo
+    // ¡Los usuarios en celulares odian loguearse a cada rato!
+    // Haremos que la cookie dure 7 días por defecto, a menos que el admin cambie la config
+    $authExpiry = time() + (7 * 24 * 3600);
+    $refreshExpiry = time() + (7 * 24 * 3600); 
 }
 
 $isSecure = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';

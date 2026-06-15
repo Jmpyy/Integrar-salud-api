@@ -10,8 +10,18 @@ try {
     $keys = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$keys) {
-        echo json_encode(['error' => 'VAPID keys not generated yet']);
-        exit;
+        // Generar keys si no existen
+        $autoloadPath = __DIR__ . '/../../vendor/autoload.php';
+        if (file_exists($autoloadPath)) {
+            require_once $autoloadPath;
+            $vapid = \Minishlink\WebPush\VAPID::createVapidKeys();
+            $stmt = $db->prepare("INSERT INTO vapid_keys (public_key, private_key) VALUES (?, ?)");
+            $stmt->execute([$vapid['publicKey'], $vapid['privateKey']]);
+            $keys = ['public_key' => $vapid['publicKey']];
+        } else {
+            echo json_encode(['error' => 'VAPID keys not generated and Composer vendor/autoload.php not found']);
+            exit;
+        }
     }
 
     echo json_encode([

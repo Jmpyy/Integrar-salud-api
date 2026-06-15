@@ -123,11 +123,10 @@ if ($sessionTimeout === 0 || $rememberMe) {
     $authExpiry = time() + (7 * 24 * 3600); // 7 days
     $refreshExpiry = time() + (30 * 24 * 3600); // 30 days
 } else {
-    // Es una sesión que se destruirá al cerrar el navegador (session cookie),
-    // Opcionalmente podemos ponerle el timeout estricto, pero el frontend ya controla la inactividad.
-    // Usaremos expiration = 0 (session cookie)
-    $authExpiry = 0;
-    $refreshExpiry = 0;
+    // Para evitar que los usuarios de celulares tengan que loguearse cada vez que cierran la app,
+    // por defecto damos 7 días a la cookie. Si el frontend usa sessionStorage, lo manejará a su manera.
+    $authExpiry = time() + (7 * 24 * 3600);
+    $refreshExpiry = time() + (7 * 24 * 3600);
 }
 
 // Emitir cookies HttpOnly (no accesibles por JavaScript — protección XSS)
