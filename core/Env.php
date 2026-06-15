@@ -8,8 +8,6 @@ class Env {
     private static bool $loaded = false;
 
     public static function load(string $path = null): void {
-        // if (self::$loaded) return;
-
         $envFile = $path ?? __DIR__ . '/../.env';
 
         if (!file_exists($envFile)) {
@@ -18,22 +16,26 @@ class Env {
         }
 
         $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        if ($lines === false) return;
+
         foreach ($lines as $line) {
             $line = trim($line);
-            // Saltar comentarios y líneas vacías
-            if (str_starts_with($line, '#') || !str_contains($line, '=')) continue;
+            if ($line === '' || $line[0] === '#') continue;
 
-            [$key, $value] = explode('=', $line, 2);
-            $key   = trim($key);
-            $value = trim($value);
+            $parts = explode('=', $line, 2);
+            if (count($parts) < 2) continue;
 
-            // Quitar comillas opcionales
+            $key   = trim($parts[0]);
+            $value = trim($parts[1]);
+
             if (preg_match('/^["\'](.*)[\'"]\s*$/', $value, $m)) {
                 $value = $m[1];
             }
 
             // Solo setear si no está ya definida por el servidor (variables del servidor tienen prioridad)
-            if (!getenv($key)) {
+            // Fix: Verificamos explícitamente !== false y !== '' para evitar bugs de hilos en Apache Windows
+            $existing = getenv($key);
+            if ($existing === false || $existing === '') {
                 putenv("$key=$value");
                 $_ENV[$key]    = $value;
                 $_SERVER[$key] = $value;
