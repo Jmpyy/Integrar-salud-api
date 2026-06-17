@@ -32,7 +32,7 @@ if ($limiter->isBlocked($clientIp, 'telemedicine_verify')) {
 
 // 1. Primero buscar el turno por DNI + Código sin restricción de fecha
 $stmt = $db->prepare('
-    SELECT a.id, a.estado_videollamada, a.appointment_date, a.appointment_time, a.payment_status, d.name as doctor_name, p.name as patient_name
+    SELECT a.id, a.estado_videollamada, a.appointment_date, a.appointment_time, a.payment_status, a.delay_message, d.name as doctor_name, p.name as patient_name
     FROM appointments a
     JOIN patients p ON a.patient_id = p.id
     JOIN doctors d ON a.doctor_id = d.id
@@ -132,5 +132,6 @@ json_success(200, [
     'doctorName'    => $appointment['doctor_name'],
     'patientName'   => $appointment['patient_name'],
     'status'        => $appointment['estado_videollamada'] === 'pendiente' ? 'en_espera' : $appointment['estado_videollamada'],
+    'delayMessage'  => $appointment['delay_message'],
     'token'         => $patientToken
 ]);
